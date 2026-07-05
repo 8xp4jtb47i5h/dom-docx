@@ -11,7 +11,7 @@
   "bugs": {
     "url": "https://github.com/dom-docx/dom-docx/issues"
   },
-  "homepage": "https://github.com/dom-docx/dom-docx#readme",
+  "homepage": "https://dom-docx.com",
   "publishConfig": {
     "access": "public"
   },

@@ -2,6 +2,8 @@
 
 Convert semantic **HTML fragments** to native, editable **Word documents** (OOXML)—paragraphs, runs, lists, tables, images—not screenshots or layout hacks.
 
+**Live demo:** [dom-docx.com](https://dom-docx.com/) — try the converter, browse showcases, read the learn guide.
+
 Built with a visual regression loop: render HTML in Chromium, convert, rasterize via LibreOffice, score layout + structural fidelity against a human-validated metric, iterate. Latest scores: [TEST-SCORES.md](./docs/TEST-SCORES.md) · methodology: [SCORING.md](./docs/SCORING.md).
 
 ## Install
@@ -14,10 +16,10 @@ Requires **Node.js ≥ 20**. No browser or Playwright is needed for the default 
 
 ### When is Playwright needed?
 
-| Entry | `styleSource: "inline"` | `styleSource: "computed"` |
-|-------|-------------------------|---------------------------|
-| **Node** (`dom-docx`) | Pure JS — no browser | **Playwright + Chromium** (optional peer dependency) to render and snapshot styles |
-| **Browser** (`dom-docx/browser`) | Pure JS — no live DOM | **Live page only** — native `getComputedStyle`; **Playwright not used** |
+| Entry                            | `styleSource: "inline"` | `styleSource: "computed"`                                                          |
+| -------------------------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| **Node** (`dom-docx`)            | Pure JS — no browser    | **Playwright + Chromium** (optional peer dependency) to render and snapshot styles |
+| **Browser** (`dom-docx/browser`) | Pure JS — no live DOM   | **Live page only** — native `getComputedStyle`; **Playwright not used**            |
 
 On Node, `playwright` is an **optional peer dependency** — `npm install dom-docx` pulls only `docx`, `cheerio`, and `fflate`, nothing heavy. It is loaded lazily only when you pass `styleSource: "computed"`. To use the computed path, install Playwright and Chromium yourself, once:
 
@@ -64,7 +66,7 @@ await writeFile("output.docx", docx);
 
 Pass a **body fragment only** (no `<!DOCTYPE>` / `<html>` / `<body>` required). Defaults: US Letter, 1″ margins, Arial 10.5pt body text.
 
-## v0.1.0 capability
+## v0.1.x capability
 
 **Supported (default `styleSource: "inline"`):**
 
@@ -103,7 +105,7 @@ import { convertHtmlToDocx, type ConvertOptions } from "dom-docx";
 const docx = await convertHtmlToDocx(html, {
   pageSize: "a4",
   orientation: "landscape",
-  margins: { top: 0.75, bottom: 0.75 },       // inches; omitted sides default to 1
+  margins: { top: 0.75, bottom: 0.75 }, // inches; omitted sides default to 1
   defaultFont: { family: "Georgia", sizePt: 11 },
   metadata: { title: "Q3 Report", creator: "Finance" },
   headerHtml: "<p style='font-size:12px;color:#666'>Confidential</p>",
@@ -116,19 +118,19 @@ const docx = await convertHtmlToDocx(html, {
 
 ### Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `styleSource` | `"inline"` | `"inline"` parses `style=""` only (pure JS, fast). `"computed"` uses `getComputedStyle` — on **Node** this requires Playwright + Chromium; in the **browser bundle** it reads from the live DOM (no Playwright). |
-| `browser` / `page` | — | **Node computed only.** Reuse an open Playwright browser or page instead of launching per call. Not used by `dom-docx/browser`. |
-| `imageResolver` | — | Hook to fetch non-`data:` `<img src>` (library never fetches on its own). |
-| `pageSize` | `"letter"` | `"letter"`, `"a4"`, or `{ width, height }` in inches. |
-| `orientation` | `"portrait"` | `"landscape"` swaps dimensions. |
-| `margins` | `1` inch each | Per-side overrides in inches. |
-| `defaultFont` | Arial 10.5pt | `{ family, sizePt }` for body text without explicit CSS. |
-| `metadata` | — | `title`, `subject`, `creator`, `keywords[]`, `description` → `docProps/core.xml`. |
-| `headerHtml` / `footerHtml` | — | HTML fragments for page header/footer. |
-| `pageNumber` | `false` | Appends centered `Page N` field to footer. |
-| `lang` / `direction` | — | Spell-check locale; `"rtl"` for right-to-left. |
+| Option                      | Default       | Description                                                                                                                                                                                                      |
+| --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `styleSource`               | `"inline"`    | `"inline"` parses `style=""` only (pure JS, fast). `"computed"` uses `getComputedStyle` — on **Node** this requires Playwright + Chromium; in the **browser bundle** it reads from the live DOM (no Playwright). |
+| `browser` / `page`          | —             | **Node computed only.** Reuse an open Playwright browser or page instead of launching per call. Not used by `dom-docx/browser`.                                                                                  |
+| `imageResolver`             | —             | Hook to fetch non-`data:` `<img src>` (library never fetches on its own).                                                                                                                                        |
+| `pageSize`                  | `"letter"`    | `"letter"`, `"a4"`, or `{ width, height }` in inches.                                                                                                                                                            |
+| `orientation`               | `"portrait"`  | `"landscape"` swaps dimensions.                                                                                                                                                                                  |
+| `margins`                   | `1` inch each | Per-side overrides in inches.                                                                                                                                                                                    |
+| `defaultFont`               | Arial 10.5pt  | `{ family, sizePt }` for body text without explicit CSS.                                                                                                                                                         |
+| `metadata`                  | —             | `title`, `subject`, `creator`, `keywords[]`, `description` → `docProps/core.xml`.                                                                                                                                |
+| `headerHtml` / `footerHtml` | —             | HTML fragments for page header/footer.                                                                                                                                                                           |
+| `pageNumber`                | `false`       | Appends centered `Page N` field to footer.                                                                                                                                                                       |
+| `lang` / `direction`        | —             | Spell-check locale; `"rtl"` for right-to-left.                                                                                                                                                                   |
 
 ### Images
 
@@ -137,7 +139,7 @@ Only **`data:`** URLs embed automatically. For `http(s):` or file paths, supply 
 ```typescript
 const docx = await convertHtmlToDocx(html, {
   imageResolver: async (src) => {
-    const res = await fetch(src);  // your allowlist / SSRF checks
+    const res = await fetch(src); // your allowlist / SSRF checks
     if (!res.ok) return null;
     return { data: new Uint8Array(await res.arrayBuffer()), type: "png" };
   },
@@ -170,11 +172,11 @@ For advanced usage (`buildDocxBuffer`, custom `StyleResolver`, engine architectu
 
 Optimized for **Word-friendly semantic HTML**—headings, paragraphs, lists, data tables, inline formatting, shaded callouts, simple flex rows.
 
-| Excellent | Good | Avoid |
-|-----------|------|-------|
-| Headings, lists, simple tables | Shaded banners, flex (≤4 items) | SVG charts, CSS grid/float layout |
-| Inline `strong` / `em` / links | Table row/cell backgrounds | External stylesheets (inline path) |
-| Short span highlights | Blockquotes, `<hr>` | Forms, web fonts |
+| Excellent                      | Good                            | Avoid                              |
+| ------------------------------ | ------------------------------- | ---------------------------------- |
+| Headings, lists, simple tables | Shaded banners, flex (≤4 items) | SVG charts, CSS grid/float layout  |
+| Inline `strong` / `em` / links | Table row/cell backgrounds      | External stylesheets (inline path) |
+| Short span highlights          | Blockquotes, `<hr>`             | Forms, web fonts                   |
 
 Full authoring guide for agents: [AGENTS.md](./AGENTS.md).
 
@@ -220,16 +222,16 @@ Prerequisites for the harness: **LibreOffice** (`soffice`) for PDF rasterization
 
 ## Documentation
 
-| Doc | Contents |
-|-----|----------|
-| [API.md](./API.md) | Full API reference, engine architecture, usage patterns |
-| [AGENTS.md](./AGENTS.md) | HTML authoring guide for AI agents |
-| [SCORING.md](./docs/SCORING.md) | Validation methodology and engine score |
-| [TEST-SCORES.md](./docs/TEST-SCORES.md) | Latest suite metrics and per-case scores |
-| [BENCHMARK.md](./docs/BENCHMARK.md) | Comparison vs OSS html-to-docx libraries |
-| [examples/](./examples/) | Sample HTML, DOCX output, and side-by-side previews |
-| [SHOWCASE.md](./docs/SHOWCASE.md) | How to run and extend showcase examples |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | Library vs harness layout, dev setup |
+| Doc                                     | Contents                                                |
+| --------------------------------------- | ------------------------------------------------------- |
+| [API.md](./API.md)                      | Full API reference, engine architecture, usage patterns |
+| [AGENTS.md](./AGENTS.md)                | HTML authoring guide for AI agents                      |
+| [SCORING.md](./docs/SCORING.md)         | Validation methodology and engine score                 |
+| [TEST-SCORES.md](./docs/TEST-SCORES.md) | Latest suite metrics and per-case scores                |
+| [BENCHMARK.md](./docs/BENCHMARK.md)     | Comparison vs OSS html-to-docx libraries                |
+| [examples/](./examples/)                | Sample HTML, DOCX output, and side-by-side previews     |
+| [SHOWCASE.md](./docs/SHOWCASE.md)       | How to run and extend showcase examples                 |
+| [CONTRIBUTING.md](./CONTRIBUTING.md)    | Library vs harness layout, dev setup                    |
 
 ## License
 
