@@ -1,7 +1,7 @@
 name: Publish
 
 # Release: bump version in package.json, commit, tag vX.Y.Z, push tag.
-# Requires NPM_TOKEN repo secret (npmjs.com → Access Tokens → Granular, publish-only).
+# Auth: npm Trusted Publisher (OIDC) — no NPM_TOKEN needed for publish.
 on:
   push:
     tags:
@@ -11,12 +11,13 @@ concurrency:
   group: publish-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +34,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version: "24"
           cache: npm
           registry-url: https://registry.npmjs.org
 
@@ -46,6 +47,4 @@ jobs:
       - run: npm run test:pack-smoke
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
