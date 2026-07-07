@@ -234,8 +234,8 @@ For contributors and harness runs (not required to use the library):
 git clone … && npm install && npm run setup
 npm run build              # dist/ for npm pack
 npm run typecheck
-npm run test:suite          # 35-case visual + XML regression
-npm run test:suite:priority # 10-case fast subset
+npm run test:suite          # full visual + XML regression suite (cases: tools/generator.ts)
+npm run test:suite:priority # fast subset of the same cases
 npm run test:benchmark     # vs html-to-docx + TurboDocx
 npm run test:config        # ConvertOptions OOXML checks
 ```
