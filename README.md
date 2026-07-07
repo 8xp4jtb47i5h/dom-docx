@@ -188,8 +188,6 @@ const blob2 = await convertHtmlToDocx(htmlFragment, { styleSource: "computed" })
 // reads getComputedStyle from document.body — no Playwright, no headless Chromium
 ```
 
-Build: `npm run build:browser` → `dist/browser/dom-docx.browser.js`.
-
 For advanced usage (`buildDocxBuffer`, custom `StyleResolver`, engine architecture), see [API.md](./API.md).
 
 ---
