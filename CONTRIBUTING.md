@@ -118,14 +118,30 @@ Scoring methodology: [docs/SCORING.md](./docs/SCORING.md). HTML authoring guide:
 
 ## Release to npm
 
-CI (`.github/workflows/ci.yml`) runs on every push/PR: typecheck, build, browser bundle, inline guard (all cases), config tests, and pack smoke — no Playwright or LibreOffice.
+CI (`.github/workflows/ci.yml`) runs on every push/PR: typecheck, build, browser bundle, `guard:inline`, `guard:config`, and `guard:pack-smoke` — no Playwright or LibreOffice.
 
-Publishing (`.github/workflows/publish.yml`) runs when a semver tag is pushed:
+Publishing uses **npm Trusted Publishing (OIDC)** — there is no `NPM_TOKEN` secret. The publish workflow (`.github/workflows/publish.yml`) runs when a semver tag matching `v*.*.*` is pushed to GitHub. It verifies the tag matches `"version"` in `package.json`, re-runs the same CI checks as above, then runs `npm publish --provenance --access public` (`prepack` builds the library and browser bundle).
 
-1. Set `"version"` in `package.json` (e.g. `0.1.1`).
-2. Commit and push to `main`.
-3. Tag and push: `git tag v0.1.1 && git push origin v0.1.1`
+### Typical release flow
 
-The tag must match the package version (`v0.1.1` ↔ `"0.1.1"`). The workflow re-runs the CI checks, then `npm publish --provenance --access public`.
+From `main` with a clean working tree:
 
-Add an **`NPM_TOKEN`** repository secret (npmjs.com → Access Tokens → granular, publish-only for `dom-docx`). Visual regression (`npm run score:suite`) stays manual — it needs Chromium + LibreOffice and is not run in GitHub Actions.
+```bash
+npm version patch   # or minor / major — bumps package.json, commits, creates vX.Y.Z tag
+git push origin main --follow-tags
+```
+
+`npm version` updates `package.json` (and `package-lock.json` if present), creates a release commit, and tags it (e.g. `v0.1.3` ↔ `"0.1.3"`). Pushing the tag triggers the workflow; the tag **must** match `package.json` or publish fails.
+
+To bump without auto-commit/tag (manual control):
+
+```bash
+npm version patch --no-git-tag-version
+# edit CHANGELOG if you keep one, then:
+git add package.json package-lock.json
+git commit -m "Release 0.1.3"
+git tag v0.1.3
+git push origin main && git push origin v0.1.3
+```
+
+Visual regression (`npm run score:suite`) is maintainer-local — Chromium + LibreOffice — and is not run in GitHub Actions before publish.
