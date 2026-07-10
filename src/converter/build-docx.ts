@@ -3,21 +3,43 @@ import {
   Document,
   Footer,
   Header,
+  PageBreak,
   PageNumber,
   Packer,
   PageOrientation,
   Paragraph,
+  TableOfContents,
   TextRun,
   convertInchesToTwip,
   type FileChild,
 } from "docx";
 import * as cheerio from "cheerio";
+import type { CheerioAPI } from "cheerio";
 import { unzipSync, zipSync } from "fflate";
 import { BODY_FONT, BODY_FONT_HALF_POINTS, NUMBERING_CONFIG, PAGE_MARGIN_TWIPS } from "./constants.js";
-import { patchDocumentXml, patchNumberingXml } from "./ooxml-patch.js";
+import { patchDocumentXml, patchHeadingOutlineLevels, patchNumberingXml } from "./ooxml-patch.js";
 import { applyImageResolver, resetImageDocPrIds, type ImageResolver } from "./image.js";
 import { INLINE_STYLE_RESOLVER, type StyleResolver } from "./style-resolver.js";
 import { htmlToDocxBlocks } from "./visitor.js";
+
+/** Table-of-contents field options (see `DocumentConfig.tableOfContents`). */
+export interface TableOfContentsConfig {
+  /**
+   * Heading text rendered above the TOC (e.g. `"Contents"`). Rendered as a plain
+   * bold paragraph — not a Word heading — so it never appears as its own entry.
+   * Omit for no title.
+   */
+  title?: string;
+  /**
+   * Heading levels to include, as a Word range, e.g. `"1-3"` (default) or `"1-2"`.
+   * `h1`–`h6` map to Word Heading 1–6.
+   */
+  headingRange?: string;
+  /** Render entries as clickable hyperlinks to their headings (default `true`). */
+  hyperlink?: boolean;
+  /** Insert a page break after the TOC so body content starts on a new page. */
+  pageBreakAfter?: boolean;
+}
 
 /** Page/font/metadata options (Tier 1 `ConvertOptions`). All lengths in inches / points. */
 export interface DocumentConfig {
@@ -46,6 +68,16 @@ export interface DocumentConfig {
   lang?: string;
   /** Text direction; `"rtl"` sets right-to-left paragraphs. */
   direction?: "ltr" | "rtl";
+  /**
+   * Insert a Table of Contents field at the top of the document, built from the
+   * headings present (`h1`–`h6` become Word Heading 1–6). The heading titles are
+   * cached into the field so the TOC is visible immediately in every viewer; page
+   * numbers are computed by the word processor on open (the field is emitted
+   * "dirty" with `updateFields`, so Word fills them in — and any reader can refresh
+   * via right-click → Update Field / Tools → Update). `true` uses defaults (levels
+   * 1–3, hyperlinked).
+   */
+  tableOfContents?: boolean | TableOfContentsConfig;
 }
 
 // Portrait dimensions in twips. Letter matches convertInchesToTwip(8.5)×(11).
@@ -68,6 +100,14 @@ interface ResolvedConfig {
   };
   lang?: string;
   rtl: boolean;
+  toc?: TableOfContentsConfig;
+}
+
+function resolveTableOfContents(
+  toc: DocumentConfig["tableOfContents"],
+): TableOfContentsConfig | undefined {
+  if (!toc) return undefined;
+  return toc === true ? {} : toc;
 }
 
 function resolveDocumentConfig(config?: DocumentConfig): ResolvedConfig {
@@ -108,6 +148,7 @@ function resolveDocumentConfig(config?: DocumentConfig): ResolvedConfig {
     metadata,
     lang: config?.lang,
     rtl: config?.direction === "rtl",
+    toc: resolveTableOfContents(config?.tableOfContents),
   };
 }
 
@@ -122,6 +163,95 @@ function pageNumberParagraph(): Paragraph {
     alignment: AlignmentType.CENTER,
     children: [new TextRun("Page "), new TextRun({ children: [PageNumber.CURRENT] })],
   });
+}
+
+/** A pre-extracted TOC entry: heading text and its level (1–6). */
+interface TocEntry {
+  title: string;
+  level: number;
+}
+
+const DEFAULT_HEADING_RANGE = "1-3";
+
+/** Parse a Word heading range (`"1-3"`, `"2"`) into an inclusive `[min, max]`. */
+function parseHeadingRange(range: string): [number, number] {
+  const span = range.match(/(\d)\s*-\s*(\d)/);
+  if (span) {
+    const lo = Number(span[1]);
+    const hi = Number(span[2]);
+    return lo <= hi ? [lo, hi] : [hi, lo];
+  }
+  const single = range.match(/\d/);
+  const n = single ? Number(single[0]) : 1;
+  return [n, n];
+}
+
+/**
+ * Heading text + level for every `h1`–`h6` in document order that falls inside
+ * `headingRange`. These become the TOC's *cached* entries — the entries a reader
+ * shows before the field is refreshed. Word regenerates them (with page numbers)
+ * on open via `updateFields`, but LibreOffice and other viewers do not update
+ * fields automatically, so without a cache they would show an empty TOC.
+ */
+function tocEntriesFromDom($: CheerioAPI, headingRange: string): TocEntry[] {
+  const [min, max] = parseHeadingRange(headingRange);
+  const selector = [];
+  for (let level = min; level <= max; level++) selector.push(`h${level}`);
+  if (!selector.length) return [];
+
+  const entries: TocEntry[] = [];
+  $(selector.join(",")).each((_, el) => {
+    const tag = String($(el).prop("tagName") ?? "");
+    const level = Number(tag[1]);
+    if (!level) return;
+    const title = $(el).text().replace(/\s+/g, " ").trim();
+    if (title) entries.push({ title, level });
+  });
+  return entries;
+}
+
+/**
+ * TOC field + optional title, prepended to the body. The field carries the TOC
+ * instruction (`\o` heading range, `\h` hyperlinks) and is emitted dirty so Word
+ * refreshes it on open. `entries` pre-populate the field's cached content so the
+ * TOC is visible in viewers that do not auto-update fields (LibreOffice, Google
+ * Docs, PDF/preview panes). Returns `[]` when no TOC is configured.
+ */
+function buildTableOfContents(resolved: ResolvedConfig, entries: TocEntry[]): FileChild[] {
+  const toc = resolved.toc;
+  if (!toc) return [];
+
+  const blocks: FileChild[] = [];
+  if (toc.title) {
+    blocks.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: toc.title,
+            bold: true,
+            font: resolved.font,
+            size: Math.round(resolved.fontHalfPoints * 1.5),
+          }),
+        ],
+      }),
+    );
+  }
+
+  blocks.push(
+    new TableOfContents("Table of Contents", {
+      hyperlink: toc.hyperlink ?? true,
+      headingStyleRange: toc.headingRange ?? DEFAULT_HEADING_RANGE,
+      // Cached entries carry titles only — real page numbers need layout, so we
+      // leave them for the reader to fill on field update rather than fake them.
+      cachedEntries: entries,
+      beginDirty: true,
+    }),
+  );
+
+  if (toc.pageBreakAfter) {
+    blocks.push(new Paragraph({ children: [new PageBreak()] }));
+  }
+  return blocks;
 }
 
 function buildFooter(config: DocumentConfig | undefined, resolved: ResolvedConfig): Footer | undefined {
@@ -143,6 +273,7 @@ async function packDocxToUint8Array(
   children: FileChild[],
   resolved: ResolvedConfig,
   chrome: { header?: Header; footer?: Footer },
+  tocEntries: TocEntry[],
 ): Promise<Uint8Array> {
   const listStyleRun = { font: resolved.font, size: resolved.fontHalfPoints };
   const doc = new Document({
@@ -178,6 +309,8 @@ async function packDocxToUint8Array(
         },
       ],
     },
+    // Flag every field (incl. the TOC) dirty so Word/LibreOffice populate it on open.
+    ...(resolved.toc ? { features: { updateFields: true } } : {}),
     sections: [
       {
         properties: {
@@ -188,7 +321,7 @@ async function packDocxToUint8Array(
         },
         ...(chrome.header ? { headers: { default: chrome.header } } : {}),
         ...(chrome.footer ? { footers: { default: chrome.footer } } : {}),
-        children,
+        children: [...buildTableOfContents(resolved, tocEntries), ...children],
       },
     ],
   });
@@ -197,13 +330,19 @@ async function packDocxToUint8Array(
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-function patchPackedDocx(packed: Uint8Array): Uint8Array {
+function patchPackedDocx(packed: Uint8Array, withTocOutline: boolean): Uint8Array {
   const files = unzipSync(packed);
   const documentXml = new TextDecoder().decode(files["word/document.xml"]);
   files["word/document.xml"] = new TextEncoder().encode(patchDocumentXml(documentXml));
   if (files["word/numbering.xml"]) {
     const numberingXml = new TextDecoder().decode(files["word/numbering.xml"]);
     files["word/numbering.xml"] = new TextEncoder().encode(patchNumberingXml(numberingXml));
+  }
+  // A TOC collects by outline level; give the heading styles explicit levels so
+  // LibreOffice can rebuild the field (Word already infers them). See the patch.
+  if (withTocOutline && files["word/styles.xml"]) {
+    const stylesXml = new TextDecoder().decode(files["word/styles.xml"]);
+    files["word/styles.xml"] = new TextEncoder().encode(patchHeadingOutlineLevels(stylesXml));
   }
   return zipSync(files);
 }
@@ -220,12 +359,15 @@ export async function buildDocxUint8Array(
   const $ = cheerio.load(`<body>${html.trim()}</body>`, { xml: false });
   if (imageResolver) await applyImageResolver($, imageResolver);
   const children = htmlToDocxBlocks($, styleResolver, resolved.fontHalfPoints);
+  const tocEntries = resolved.toc
+    ? tocEntriesFromDom($, resolved.toc.headingRange ?? DEFAULT_HEADING_RANGE)
+    : [];
   const chrome = {
     header: buildHeader(documentConfig, resolved),
     footer: buildFooter(documentConfig, resolved),
   };
-  const packed = await packDocxToUint8Array(children, resolved, chrome);
-  return patchPackedDocx(packed);
+  const packed = await packDocxToUint8Array(children, resolved, chrome, tocEntries);
+  return patchPackedDocx(packed, Boolean(resolved.toc));
 }
 
 /** Browser entry — returns a `.docx` Blob. */

@@ -55,6 +55,30 @@ export function patchTableCellSpacingOrder(documentXml: string): string {
   );
 }
 
+/**
+ * The docx library's built-in Heading1..9 styles carry run properties but no
+ * `<w:outlineLvl>`. Word still collects them into a TOC via its built-in
+ * "Heading N" convention, but LibreOffice's "create from outline" TOC evaluates
+ * the *explicit* outline level — without it, updating/regenerating the field finds
+ * no entries and empties the table. Stamp each `HeadingN` style with
+ * `outlineLvl = N − 1` (Heading1 → 0) so the TOC survives a refresh everywhere.
+ */
+export function patchHeadingOutlineLevels(stylesXml: string): string {
+  return stylesXml.replace(
+    /<w:style\b[^>]*\bw:styleId="Heading([1-9])"[^>]*>[\s\S]*?<\/w:style>/g,
+    (styleXml, level: string) => {
+      if (styleXml.includes("<w:outlineLvl")) return styleXml;
+      const outline = `<w:outlineLvl w:val="${Number(level) - 1}"/>`;
+      // CT_Style order is (…qFormat) pPr, rPr. Fold into an existing pPr (outlineLvl
+      // sits last in CT_PPrBase), else insert a fresh pPr right before rPr.
+      if (/<w:pPr>[\s\S]*?<\/w:pPr>/.test(styleXml)) {
+        return styleXml.replace("</w:pPr>", `${outline}</w:pPr>`);
+      }
+      return styleXml.replace("<w:rPr>", `<w:pPr>${outline}</w:pPr><w:rPr>`);
+    },
+  );
+}
+
 export function patchDocumentXml(documentXml: string): string {
   return patchTableCellSpacingOrder(patchShadedParagraphVerticalAlign(documentXml));
 }

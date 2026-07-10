@@ -67,18 +67,20 @@ npm run score:calibration -- --full
 
 ### 3. Guards — binary pass/fail invariants
 
-Each writes a result to `output/guards/<id>.json` (via `tools/guard-result.ts`, or an inlined equivalent in `scripts/pack-smoke.mjs` since it runs via plain `node`); `docs:sync` reads whichever are present into a single status table in BENCHMARK.md. `guard:inline`, `guard:config`, and `guard:pack-smoke` need no Playwright/LibreOffice and run in CI; the other two need Playwright and are maintainer-only.
+Each writes a result to `output/guards/<id>.json` (via `tools/guard-result.ts`, or an inlined equivalent in `scripts/pack-smoke.mjs` since it runs via plain `node`); `docs:sync` reads whichever are present into a single status table in BENCHMARK.md. `guard:inline`, `guard:config`, `guard:toc`, and `guard:pack-smoke` need no Playwright/LibreOffice and run in CI; the remaining ones need Playwright/LibreOffice and are maintainer-only.
 
 - **`guard:inline`** — converts every case via default options and via explicit `{ styleSource: "inline" }`; asserts byte-identical normalized `word/*.xml`. Catches accidental drift in the default path.
-- **`guard:config`** — a battery of named assertions (one per `ConvertOptions` field — `pageSize`, `margins`, `defaultFont`, `metadata`, `headerHtml`/`footerHtml`, `pageNumber`, `lang`/`direction`, …) that each produces the correct OOXML.
+- **`guard:config`** — a battery of named assertions (one per `DocumentConfig` field — `pageSize`, `margins`, `defaultFont`, `metadata`, `headerHtml`/`footerHtml`, `pageNumber`, `lang`/`direction`, `tableOfContents`, …) that each produces the correct OOXML. **Runs every assertion through both public entries** — the Node `convertHtmlToDocx` and the browser `convertHtmlToDocxUint8Array` (its inline path runs headless) — because option forwarding is duplicated per entry and has drifted before (a new option reaching one entry but not the other, with no compiler error).
 - **`guard:pack-smoke`** — `npm pack`s the real tarball, installs it into a clean temp project, and asserts: Playwright isn't a hard/optional dependency, the browser bundle files ship in the tarball, and the library/CLI/browser entry points each actually convert HTML to a valid `.docx`.
 - **`guard:computed-parity`** — computed-oracle and computed-native must emit byte-identical OOXML for identical HTML. This is what backs the claim that the "native" lane (a Playwright-driven stand-in used in the test harness) faithfully represents the real browser deployment.
 - **`guard:browser-parity`** — chained script (`build:browser && browser-spike.ts && browser-build-parity.ts`) asserting the esbuild browser IIFE bundle (`dom-docx/browser`) produces byte-identical output to the Node computed-native path.
 - **`guard:page-break`** — structural page-break test (OOXML `w:pageBreakBefore` + multi-page PDF). Not part of the visual suite — explicit breaks can't be scored with single-page pixel compare.
+- **`guard:toc`** — structural table-of-contents test for the `tableOfContents` config option. Asserts the `w:sdt` TOC field and its `TOC \o "…" \h` instruction; the cached entry titles (so the TOC is visible before any field update, honoring `headingRange`); the heading styles' explicit `w:outlineLvl` (without which LibreOffice regenerates to an empty table); the `w:dirty` + `w:updateFields` flags that make Word fill page numbers on open; and OOXML schema validity. Page numbers depend on layout, so they're filled by the word processor, not scored here.
 
 ```bash
 npm run guard:inline             # CI
 npm run guard:config             # CI
+npm run guard:toc                # CI
 npm run guard:pack-smoke         # CI
 npm run guard:page-break         # structural page breaks (needs LibreOffice)
 npm run guard:computed-parity    # maintainer-only, needs Playwright

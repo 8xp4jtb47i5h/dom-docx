@@ -99,7 +99,7 @@ Pass a **body fragment only** (no `<!DOCTYPE>` / `<html>` / `<body>` required). 
 - Headings, paragraphs, lists (`<ul>`/`<ol>` including `list-style-type`), tables, links, inline formatting
 - Block backgrounds, blockquotes, `<hr>`, simple flex rows (≤4 items)
 - `data:` images; remote images via your `imageResolver`
-- Page size/orientation/margins, default font, metadata, header/footer HTML, page numbers, lang/direction
+- Page size/orientation/margins, default font, metadata, header/footer HTML, page numbers, table of contents, lang/direction
 - Low-complexity inline SVG (bars + text)
 - CSS bar divs in table cells (background + height/width → native shaded bands)
 
@@ -148,6 +148,7 @@ const docx = await convertHtmlToDocx(html, {
   pageNumber: true,
   lang: "en-US",
   direction: "ltr",
+  tableOfContents: { title: "Contents", pageBreakAfter: true }, // or just `true`
 });
 ```
 
@@ -168,6 +169,7 @@ const docx = await convertHtmlToDocx(html, {
 | `headerHtml` / `footerHtml` | —             | HTML fragments for page header/footer.                                                                                                                                                                           |
 | `pageNumber`                | `false`       | Appends centered `Page N` field to footer.                                                                                                                                                                       |
 | `lang` / `direction`        | —             | Spell-check locale; `"rtl"` for right-to-left.                                                                                                                                                                   |
+| `tableOfContents`           | —             | `true` or `{ title?, headingRange?, hyperlink?, pageBreakAfter? }`. Inserts a TOC field built from the `h1`–`h6` in the document. Heading titles are cached so the TOC shows immediately in any viewer; page numbers fill in on field update (automatic in Word, right-click → Update elsewhere). |
 
 ### Images
 

@@ -16,7 +16,7 @@ import type { RasterizeInPlaceOptions } from "./converter/rasterize-subtree.brow
 
 export type { StyleResolver, StyleSource } from "./converter/style-resolver.js";
 export type { ImageResolver, ResolvedImage } from "./converter/image.js";
-export type { DocumentConfig } from "./converter/build-docx.js";
+export type { DocumentConfig, TableOfContentsConfig } from "./converter/build-docx.js";
 export type { RasterizeInPlaceOptions } from "./converter/rasterize-subtree.browser.js";
 export { buildDocxUint8Array, buildDocxBlob } from "./converter/build-docx.js";
 
@@ -51,12 +51,6 @@ export interface ConvertOptions extends DocumentConfig {
   imageResolver?: ImageResolver;
   // Page layout, default font, and metadata come from DocumentConfig (pageSize,
   // orientation, margins, defaultFont, metadata).
-}
-
-function documentConfig(options?: ConvertOptions): DocumentConfig | undefined {
-  if (!options) return undefined;
-  const { pageSize, orientation, margins, defaultFont, metadata, headerHtml, footerHtml, pageNumber, lang, direction } = options;
-  return { pageSize, orientation, margins, defaultFont, metadata, headerHtml, footerHtml, pageNumber, lang, direction };
 }
 
 interface ResolveResult {
@@ -155,11 +149,16 @@ export async function convertHtmlToDocx(
   const { resolver, exportHtml, ownsBrowser, ownsPage, cleanupRasterize } =
     await resolveStyleAndExportHtml(html, styleSource, options);
   try {
+    // Pass `options` straight through as the DocumentConfig: it structurally
+    // extends DocumentConfig, and buildDocx reads only the named config fields —
+    // the conversion-only keys (styleSource/page/…) are ignored. Forwarding the
+    // whole object means new DocumentConfig fields reach the builder with no
+    // per-entry plumbing to keep in sync (this drifted before — see guard:config).
     return await buildDocxBuffer(
       exportHtml,
       resolver,
       options?.imageResolver,
-      documentConfig(options),
+      options,
     );
   } finally {
     if (cleanupRasterize) await cleanupRasterize();

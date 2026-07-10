@@ -38,12 +38,6 @@ export interface BrowserConvertOptions extends DocumentConfig {
   imageResolver?: ImageResolver;
 }
 
-function documentConfig(options?: BrowserConvertOptions): DocumentConfig | undefined {
-  if (!options) return undefined;
-  const { pageSize, orientation, margins, defaultFont, metadata, headerHtml, footerHtml, pageNumber, lang, direction } = options;
-  return { pageSize, orientation, margins, defaultFont, metadata, headerHtml, footerHtml, pageNumber, lang, direction };
-}
-
 export async function convertHtmlToDocxUint8Array(
   html: string,
   options?: BrowserConvertOptions,
@@ -76,11 +70,15 @@ export async function convertHtmlToDocxUint8Array(
         : ComputedStyleResolver.fromSnapshots(
             snapshotComputedStylesFromDocument(doc ?? document, exportRoot),
           );
+    // Forward `options` straight through as the DocumentConfig — it extends
+    // DocumentConfig and buildDocx reads only the named config fields, so new
+    // fields need no per-entry plumbing. Keep in lockstep with the Node entry;
+    // guard:config runs its assertions through BOTH entries to enforce that.
     return await buildDocxUint8Array(
       exportHtml,
       resolver,
       options?.imageResolver,
-      documentConfig(options),
+      options,
     );
   } finally {
     cleanup();

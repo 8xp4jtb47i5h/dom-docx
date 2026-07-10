@@ -1,41 +1,63 @@
 import { unzipSync } from "fflate";
-import { convertHtmlToDocx, type ConvertOptions } from "../src/converter.js";
+import { convertHtmlToDocx, type DocumentConfig } from "../src/converter.js";
+import { convertHtmlToDocxUint8Array } from "../src/browser.js";
 import { writeGuardResult } from "./guard-result.js";
 
 const HTML = `<p>Config option test document.</p>`;
 
+/**
+ * DocumentConfig options are forwarded to the builder by BOTH public entries — the
+ * Node `convertHtmlToDocx` and the browser `convertHtmlToDocxUint8Array`. Those
+ * forwarding paths drifted before (a new option reached one entry but not the
+ * other, with no compiler error), so every assertion below runs through BOTH.
+ * The browser entry's inline path needs no DOM, so it runs headless here in CI.
+ */
+const ENTRIES: {
+  name: string;
+  convert: (html: string, opts?: DocumentConfig) => Promise<Uint8Array>;
+}[] = [
+  { name: "node", convert: async (html, opts) => new Uint8Array(await convertHtmlToDocx(html, opts)) },
+  { name: "browser", convert: (html, opts) => convertHtmlToDocxUint8Array(html, opts) },
+];
+
 let failures = 0;
 let checksRun = 0;
+let convert: (html: string, opts?: DocumentConfig) => Promise<Uint8Array>;
+let entryLabel = "";
+
 function check(name: string, cond: boolean, detail?: string): void {
   checksRun += 1;
   if (cond) {
-    console.log(`  ✓ ${name}`);
+    console.log(`  ✓ [${entryLabel}] ${name}`);
   } else {
-    console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ""}`);
+    console.error(`  ✗ [${entryLabel}] ${name}${detail ? ` — ${detail}` : ""}`);
     failures += 1;
   }
 }
 
-async function part(options: ConvertOptions | undefined, path: string): Promise<string> {
-  const buf = await convertHtmlToDocx(HTML, options);
-  const files = unzipSync(new Uint8Array(buf));
-  const data = files[path];
+async function unzip(options: DocumentConfig | undefined): Promise<Record<string, Uint8Array>> {
+  return unzipSync(await convert(HTML, options));
+}
+
+async function part(options: DocumentConfig | undefined, path: string): Promise<string> {
+  const data = (await unzip(options))[path];
   return data ? new TextDecoder().decode(data) : "";
 }
 
 /** The document's default run props (font/size) live in <w:docDefaults>. */
-async function docDefaults(options: ConvertOptions | undefined): Promise<string> {
+async function docDefaults(options: DocumentConfig | undefined): Promise<string> {
   const styles = await part(options, "word/styles.xml");
   return styles.match(/<w:docDefaults>.*?<\/w:docDefaults>/s)?.[0] ?? "";
 }
 
 /** The size on the body text run for the single `<p>` (runs hardcode w:sz). */
-async function bodyRunSize(options: ConvertOptions | undefined): Promise<string | null> {
+async function bodyRunSize(options: DocumentConfig | undefined): Promise<string | null> {
   const doc = await part(options, "word/document.xml");
   return doc.match(/<w:sz w:val="(\d+)"\s*\/>/)?.[1] ?? null;
 }
 
-async function main(): Promise<void> {
+/** The full battery of option → OOXML assertions, run once per entry point. */
+async function runSuite(): Promise<void> {
   // ---- Defaults (no options) must stay Letter / 1" / Arial 14pt ----
   console.log("Defaults (unchanged when options omitted):");
   const defDoc = await part(undefined, "word/document.xml");
@@ -101,12 +123,11 @@ async function main(): Promise<void> {
 
   // ---- Tier 2: headers / footers / page number ----
   console.log("\nheaders / footers / pageNumber:");
-  const buf = await convertHtmlToDocx(HTML, {
+  const files = await unzip({
     headerHtml: "<p>ACME Confidential</p>",
     footerHtml: "<p>© 2026 ACME</p>",
     pageNumber: true,
   });
-  const files = unzipSync(new Uint8Array(buf));
   const dec = (p: string): string => (files[p] ? new TextDecoder().decode(files[p]) : "");
   check("header1.xml exists", Boolean(files["word/header1.xml"]));
   check("header content", dec("word/header1.xml").includes("ACME Confidential"));
@@ -118,7 +139,7 @@ async function main(): Promise<void> {
   check("section references footer", /<w:footerReference/.test(doc));
 
   // pageNumber without footerHtml still creates a footer with the field
-  const pnOnly = unzipSync(new Uint8Array(await convertHtmlToDocx(HTML, { pageNumber: true })));
+  const pnOnly = await unzip({ pageNumber: true });
   check("pageNumber alone creates footer", Boolean(pnOnly["word/footer1.xml"]));
 
   // ---- Tier 2: lang / direction ----
@@ -128,17 +149,37 @@ async function main(): Promise<void> {
   check("rtl flag in docDefaults", /<w:rtl\s*\/>/.test(langDD));
   check("no rtl when ltr (default)", !/<w:rtl\s*\/>/.test(await docDefaults(undefined)));
 
-  console.log(failures === 0 ? "\nAll config-option tests passed." : `\n${failures} check(s) failed.`);
+  // ---- Tier 2: tableOfContents (the option whose browser forwarding regressed) ----
+  console.log("\ntableOfContents:");
+  const tocDoc = await part({ tableOfContents: true }, "word/document.xml");
+  check("emits TOC field when enabled", /<w:instrText[^>]*>\s*TOC\b/.test(tocDoc));
+  check("no TOC field when omitted", !/<w:instrText[^>]*>\s*TOC\b/.test(defDoc));
+}
+
+async function main(): Promise<void> {
+  for (const entry of ENTRIES) {
+    convert = entry.convert;
+    entryLabel = entry.name;
+    console.log(`\n===== entry: ${entry.name} =====`);
+    await runSuite();
+  }
+
+  const ok = failures === 0;
+  console.log(
+    ok
+      ? "\nAll config-option tests passed (node + browser entries)."
+      : `\n${failures} check(s) failed.`,
+  );
   await writeGuardResult({
     id: "config-options",
     label: "Config options",
     passed: checksRun - failures,
     total: checksRun,
-    ok: failures === 0,
-    unit: "checks passed",
+    ok,
+    unit: "checks passed (node + browser)",
     command: "npm run guard:config",
   });
-  if (failures > 0) process.exitCode = 1;
+  if (!ok) process.exitCode = 1;
 }
 
 main().catch((err) => {

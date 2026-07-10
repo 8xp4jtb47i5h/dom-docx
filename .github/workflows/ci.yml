@@ -29,4 +29,5 @@ jobs:
       - run: npm run build:browser
       - run: npm run guard:inline
       - run: npm run guard:config
+      - run: npm run guard:toc
       - run: npm run guard:pack-smoke
