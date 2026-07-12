@@ -6,10 +6,10 @@
   "author": "Blair Googer",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dom-docx/dom-docx.git"
+    "url": "git+https://github.com/floodtide/dom-docx.git"
   },
   "bugs": {
-    "url": "https://github.com/dom-docx/dom-docx/issues"
+    "url": "https://github.com/floodtide/dom-docx/issues"
   },
   "homepage": "https://dom-docx.com",
   "publishConfig": {

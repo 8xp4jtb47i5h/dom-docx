@@ -4,11 +4,7 @@ All notable changes to this project will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
-
-### Fixed
-
-- **Headings no longer smash into the block above them.** Web layouts routinely zero heading margins and rely on flex/grid `gap` or container padding for spacing — which has no equivalent in a flat docx, so on the computed path a `margin-top: 0` heading rendered flush against the previous paragraph or table. Heading top spacing is now floored to ~0.5em of the heading font (a larger real margin still wins; the floor is skipped inside flex cards).
+## [0.1.6] - 2026-07-12
 
 ### Added
 
@@ -18,6 +14,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Removed
 
 - **`tableOfContents`** (breaking) — the auto-generated, page-number-less TOC field added in 0.1.5 is removed in favor of `tocHtml` + internal links. Rather than dom-docx generating and styling the TOC, you provide the exact TOC markup and it wires up the `#id` navigation — full styling control, no field, no "update fields" prompt, nothing to keep in sync. (`TableOfContentsConfig` type and `guard:toc` removed.)
+
+### Fixed
+
+- **Headings no longer smash into the block above them.** Web layouts routinely zero heading margins and rely on flex/grid `gap` or container padding for spacing — which has no equivalent in a flat docx, so on the computed path a `margin-top: 0` heading rendered flush against the previous paragraph or table. Heading top spacing is now floored to ~0.5em of the heading font (a larger real margin still wins; the floor is skipped inside flex cards).
 
 ## [0.1.5] - 2026-07-10
 
@@ -100,6 +100,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Committed [examples/](./examples/) with sample HTML, DOCX, and side-by-side previews
 - Visual regression harness in `tools/` (33-case loop, OSS benchmark, scoring methodology)
 
+[0.1.6]: https://github.com/dom-docx/dom-docx/releases/tag/v0.1.6
+[0.1.5]: https://github.com/dom-docx/dom-docx/releases/tag/v0.1.5
+[0.1.4]: https://github.com/dom-docx/dom-docx/releases/tag/v0.1.4
 [0.1.3]: https://github.com/dom-docx/dom-docx/releases/tag/v0.1.3
 [0.1.2]: https://github.com/dom-docx/dom-docx/releases/tag/v0.1.2
 [0.1.1]: https://github.com/dom-docx/dom-docx/releases/tag/v0.1.1
