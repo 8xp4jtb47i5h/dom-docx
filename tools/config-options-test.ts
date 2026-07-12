@@ -149,11 +149,15 @@ async function runSuite(): Promise<void> {
   check("rtl flag in docDefaults", /<w:rtl\s*\/>/.test(langDD));
   check("no rtl when ltr (default)", !/<w:rtl\s*\/>/.test(await docDefaults(undefined)));
 
-  // ---- Tier 2: tableOfContents (the option whose browser forwarding regressed) ----
-  console.log("\ntableOfContents:");
-  const tocDoc = await part({ tableOfContents: true }, "word/document.xml");
-  check("emits TOC field when enabled", /<w:instrText[^>]*>\s*TOC\b/.test(tocDoc));
-  check("no TOC field when omitted", !/<w:instrText[^>]*>\s*TOC\b/.test(defDoc));
+  // ---- Tier 2: tocHtml (caller-provided table-of-contents slot) ----
+  console.log("\ntocHtml:");
+  const tocDoc = await part({ tocHtml: "<p>TOC MARKER</p>" }, "word/document.xml");
+  check("toc slot content present", tocDoc.includes("TOC MARKER"));
+  check(
+    "toc slot precedes body",
+    tocDoc.indexOf("TOC MARKER") < tocDoc.indexOf("Config option test document"),
+  );
+  check("no toc slot content when omitted", !defDoc.includes("TOC MARKER"));
 
   // ---- Tier 2: coverHtml ----
   console.log("\ncoverHtml:");

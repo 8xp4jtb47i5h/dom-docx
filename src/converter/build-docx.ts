@@ -8,7 +8,6 @@ import {
   Packer,
   PageOrientation,
   Paragraph,
-  TableOfContents,
   TextRun,
   convertInchesToTwip,
   type FileChild,
@@ -16,34 +15,10 @@ import {
 import * as cheerio from "cheerio";
 import { unzipSync, zipSync } from "fflate";
 import { BODY_FONT, BODY_FONT_HALF_POINTS, NUMBERING_CONFIG, PAGE_MARGIN_TWIPS } from "./constants.js";
-import {
-  patchDocumentXml,
-  patchHeadingOutlineLevels,
-  patchNumberingXml,
-  patchTableOfContents,
-} from "./ooxml-patch.js";
+import { patchDocumentXml, patchNumberingXml } from "./ooxml-patch.js";
 import { applyImageResolver, resetImageDocPrIds, type ImageResolver } from "./image.js";
 import { INLINE_STYLE_RESOLVER, type StyleResolver } from "./style-resolver.js";
 import { htmlToDocxBlocks } from "./visitor.js";
-
-/** Table-of-contents field options (see `DocumentConfig.tableOfContents`). */
-export interface TableOfContentsConfig {
-  /**
-   * Heading text rendered above the TOC (e.g. `"Contents"`). Rendered as a plain
-   * bold paragraph — not a Word heading — so it never appears as its own entry.
-   * Omit for no title.
-   */
-  title?: string;
-  /**
-   * Heading levels to include, as a Word range, e.g. `"1-3"` (default) or `"1-2"`.
-   * `h1`–`h6` map to Word Heading 1–6.
-   */
-  headingRange?: string;
-  /** Render entries as clickable hyperlinks to their headings (default `true`). */
-  hyperlink?: boolean;
-  /** Insert a page break after the TOC so body content starts on a new page. */
-  pageBreakAfter?: boolean;
-}
 
 /** Page/font/metadata options (Tier 1 `ConvertOptions`). All lengths in inches / points. */
 export interface DocumentConfig {
@@ -82,15 +57,13 @@ export interface DocumentConfig {
    */
   coverHtml?: string;
   /**
-   * Insert a clickable, page-number-less Table of Contents at the top of the
-   * document, built from the headings present (`h1`–`h6` become Word Heading 1–6).
-   * Each entry is a hyperlink to its heading. Page numbers depend on layout, which
-   * this library does not do — so instead of a live field that must be refreshed
-   * (and prompts to "update fields"), the TOC omits page numbers and is complete at
-   * creation: correct in every viewer with no update. `true` uses defaults (levels
-   * 1–3, clickable).
+   * HTML fragment rendered as a table-of-contents "slot": placed after the cover
+   * page (if any) and before the body. You control the markup and styling — a
+   * numbered or boxed list, columns, whatever — and in-page links (`<a href="#id">`)
+   * jump to the matching `id` in the body (dom-docx bookmarks `id` attributes). Add
+   * a trailing `<div style="break-after:page"></div>` if you want it on its own page.
    */
-  tableOfContents?: boolean | TableOfContentsConfig;
+  tocHtml?: string;
 }
 
 // Portrait dimensions in twips. Letter matches convertInchesToTwip(8.5)×(11).
@@ -113,14 +86,6 @@ interface ResolvedConfig {
   };
   lang?: string;
   rtl: boolean;
-  toc?: TableOfContentsConfig;
-}
-
-function resolveTableOfContents(
-  toc: DocumentConfig["tableOfContents"],
-): TableOfContentsConfig | undefined {
-  if (!toc) return undefined;
-  return toc === true ? {} : toc;
 }
 
 function resolveDocumentConfig(config?: DocumentConfig): ResolvedConfig {
@@ -161,7 +126,6 @@ function resolveDocumentConfig(config?: DocumentConfig): ResolvedConfig {
     metadata,
     lang: config?.lang,
     rtl: config?.direction === "rtl",
-    toc: resolveTableOfContents(config?.tableOfContents),
   };
 }
 
@@ -178,59 +142,16 @@ function pageNumberParagraph(): Paragraph {
   });
 }
 
-const DEFAULT_HEADING_RANGE = "1-3";
-
-/** The resolved heading range + hyperlink flag the TOC patch needs, or `undefined`. */
-function tocPatchOptions(
-  resolved: ResolvedConfig,
-): { headingRange: string; hyperlink: boolean } | undefined {
-  if (!resolved.toc) return undefined;
-  return {
-    headingRange: resolved.toc.headingRange ?? DEFAULT_HEADING_RANGE,
-    hyperlink: resolved.toc.hyperlink ?? true,
-  };
-}
-
 /**
- * TOC field + optional title, prepended to the body. docx emits the bare field
- * (its `\o`/`\h` instruction and an empty result); `patchTableOfContents` then
- * fills the result with clickable, page-number-less entries and bookmarks the
- * headings. The field is NOT dirty and we set no `updateFields`: a number-less TOC
- * is complete at creation, so there is nothing to refresh and no "update fields"
- * prompt. Returns `[]` when no TOC is configured.
+ * Caller-provided table-of-contents fragment, placed after the cover (if any) and
+ * before the body. Rendered as ordinary body content via the inline style path;
+ * in-page links (`<a href="#id">`) resolve to `id` bookmarks in the body. The
+ * caller adds a trailing page break in the fragment if they want it on its own
+ * page. Returns `[]` when no `tocHtml` is configured.
  */
-function buildTableOfContents(resolved: ResolvedConfig): FileChild[] {
-  const toc = resolved.toc;
-  if (!toc) return [];
-
-  const blocks: FileChild[] = [];
-  if (toc.title) {
-    blocks.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: toc.title,
-            bold: true,
-            font: resolved.font,
-            size: Math.round(resolved.fontHalfPoints * 1.5),
-          }),
-        ],
-      }),
-    );
-  }
-
-  blocks.push(
-    new TableOfContents("Table of Contents", {
-      hyperlink: toc.hyperlink ?? true,
-      headingStyleRange: toc.headingRange ?? DEFAULT_HEADING_RANGE,
-      beginDirty: false,
-    }),
-  );
-
-  if (toc.pageBreakAfter) {
-    blocks.push(new Paragraph({ children: [new PageBreak()] }));
-  }
-  return blocks;
+function buildTocSlot(config: DocumentConfig | undefined, resolved: ResolvedConfig): FileChild[] {
+  if (!config?.tocHtml) return [];
+  return fragmentToBlocks(config.tocHtml, resolved.fontHalfPoints);
 }
 
 /**
@@ -266,6 +187,7 @@ async function packDocxToUint8Array(
   resolved: ResolvedConfig,
   chrome: { header?: Header; footer?: Footer },
   coverBlocks: FileChild[],
+  tocSlotBlocks: FileChild[],
 ): Promise<Uint8Array> {
   const listStyleRun = { font: resolved.font, size: resolved.fontHalfPoints };
   // A cover page suppresses the header/footer/page-number on page 1 via Word's
@@ -319,7 +241,7 @@ async function packDocxToUint8Array(
         ...(chrome.footer
           ? { footers: { default: chrome.footer, ...(suppressFirstChrome ? { first: new Footer({ children: [] }) } : {}) } }
           : {}),
-        children: [...coverBlocks, ...buildTableOfContents(resolved), ...children],
+        children: [...coverBlocks, ...tocSlotBlocks, ...children],
       },
     ],
   });
@@ -328,23 +250,13 @@ async function packDocxToUint8Array(
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-function patchPackedDocx(
-  packed: Uint8Array,
-  toc?: { headingRange: string; hyperlink: boolean },
-): Uint8Array {
+function patchPackedDocx(packed: Uint8Array): Uint8Array {
   const files = unzipSync(packed);
-  let documentXml = patchDocumentXml(new TextDecoder().decode(files["word/document.xml"]));
-  if (toc) documentXml = patchTableOfContents(documentXml, toc.headingRange, toc.hyperlink);
-  files["word/document.xml"] = new TextEncoder().encode(documentXml);
+  const documentXml = new TextDecoder().decode(files["word/document.xml"]);
+  files["word/document.xml"] = new TextEncoder().encode(patchDocumentXml(documentXml));
   if (files["word/numbering.xml"]) {
     const numberingXml = new TextDecoder().decode(files["word/numbering.xml"]);
     files["word/numbering.xml"] = new TextEncoder().encode(patchNumberingXml(numberingXml));
-  }
-  // A TOC collects by outline level; give the heading styles explicit levels so a
-  // manual field refresh rebuilds correctly in LibreOffice (Word infers them).
-  if (toc && files["word/styles.xml"]) {
-    const stylesXml = new TextDecoder().decode(files["word/styles.xml"]);
-    files["word/styles.xml"] = new TextEncoder().encode(patchHeadingOutlineLevels(stylesXml));
   }
   return zipSync(files);
 }
@@ -366,8 +278,9 @@ export async function buildDocxUint8Array(
     footer: buildFooter(documentConfig, resolved),
   };
   const coverBlocks = buildCover(documentConfig, resolved);
-  const packed = await packDocxToUint8Array(children, resolved, chrome, coverBlocks);
-  return patchPackedDocx(packed, tocPatchOptions(resolved));
+  const tocSlotBlocks = buildTocSlot(documentConfig, resolved);
+  const packed = await packDocxToUint8Array(children, resolved, chrome, coverBlocks, tocSlotBlocks);
+  return patchPackedDocx(packed);
 }
 
 /** Browser entry — returns a `.docx` Blob. */

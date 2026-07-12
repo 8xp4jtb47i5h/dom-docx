@@ -149,7 +149,7 @@ const docx = await convertHtmlToDocx(html, {
   lang: "en-US",
   direction: "ltr",
   coverHtml: "<h1 style='text-align:center'>Quarterly Review</h1>", // page 1, before the TOC
-  tableOfContents: { title: "Contents", pageBreakAfter: true }, // or just `true`
+  tocHtml: "<ol><li><a href='#intro'>Introduction</a></li></ol>", // your TOC; links jump to id="intro"
 });
 ```
 
@@ -171,7 +171,7 @@ const docx = await convertHtmlToDocx(html, {
 | `pageNumber`                | `false`       | Appends centered `Page N` field to footer.                                                                                                                                                                       |
 | `lang` / `direction`        | —             | Spell-check locale; `"rtl"` for right-to-left.                                                                                                                                                                   |
 | `coverHtml`                 | —             | HTML fragment rendered as a cover page — the first content, before the TOC, followed by an automatic page break. Inline styles + `data:` images (e.g. a logo). Header/footer/page number are suppressed on the cover page. |
-| `tableOfContents`           | —             | `true` or `{ title?, headingRange?, hyperlink?, pageBreakAfter? }`. Inserts a **clickable, page-number-less** table of contents built from the `h1`–`h6` in the document — each entry links to its heading. It's complete at creation (no page numbers to compute), so it's correct in every viewer with no field update and no "update fields" prompt. |
+| `tocHtml`                   | —             | HTML fragment rendered as a table-of-contents "slot" — placed after the cover, before the body. **You** control the markup/styling (numbered, boxed, columns…); in-page links (`<a href="#id">`) jump to the matching `id` in the body. Add a trailing `<div style="break-after:page"></div>` to put it on its own page. |
 
 ### Images
 

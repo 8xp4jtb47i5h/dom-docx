@@ -14,7 +14,6 @@ export { convertHtmlToDocx, buildDocxBuffer, buildDocxUint8Array, buildDocxBlob 
 export type {
   ConvertOptions,
   DocumentConfig,
-  TableOfContentsConfig,
   StyleSource,
   StyleResolver,
   ImageResolver,

@@ -9,6 +9,7 @@ import {
 } from "docx";
 import type { CheerioAPI } from "cheerio";
 import type { AnyNode, Element } from "domhandler";
+import { prependElementBookmark } from "./bookmarks.js";
 import {
   BODY_FONT_HALF_POINTS,
   BODY_LINE_EXACT_TWIPS,
@@ -1174,6 +1175,7 @@ export function visitElement(
   if (isHiddenElement(element, ctx.styleResolver)) return [];
   const tag = element.name.toLowerCase();
 
+  let blocks: DocxBlock[];
   switch (tag) {
     case "h1":
     case "h2":
@@ -1181,27 +1183,31 @@ export function visitElement(
     case "h4":
     case "h5":
     case "h6":
-      return processHeading($, element, ctx);
+      blocks = processHeading($, element, ctx);
+      break;
     case "p":
     case "div":
     case "section":
-      return processBlockContainer($, element, ctx);
+      blocks = processBlockContainer($, element, ctx);
+      break;
     case "blockquote":
-      return processBlockquote($, element, ctx);
+      blocks = processBlockquote($, element, ctx);
+      break;
     case "ul":
     case "ol":
-      return processList($, element, ctx);
+      blocks = processList($, element, ctx);
+      break;
     case "table": {
       // CSS margins on the table element → spacer paragraphs (also keeps
       // adjacent tables from merging into one in Word).
       const tableCss = ctx.styleResolver.getCss(element);
-      const blocks: DocxBlock[] = [];
+      const tableBlocks: DocxBlock[] = [];
       const topSpacer = marginSpacer(tableCss.marginTop);
-      if (topSpacer) blocks.push(topSpacer);
+      if (topSpacer) tableBlocks.push(topSpacer);
       // `<caption>` renders above the table, centered (UA default).
       const caption = $(element).children("caption").first().toArray()[0];
       if (caption) {
-        blocks.push(
+        tableBlocks.push(
           makeParagraph(
             collectInlineRunsFromNodes(
               caption.children ?? [],
@@ -1214,20 +1220,28 @@ export function visitElement(
           ),
         );
       }
-      blocks.push(convertTable($, element, ctx.styleResolver));
+      tableBlocks.push(convertTable($, element, ctx.styleResolver));
       const bottomSpacer = marginSpacer(tableCss.marginBottom);
-      if (bottomSpacer) blocks.push(bottomSpacer);
-      return blocks;
+      if (bottomSpacer) tableBlocks.push(bottomSpacer);
+      blocks = tableBlocks;
+      break;
     }
     case "svg":
-      return convertSvg(element);
+      blocks = convertSvg(element);
+      break;
     case "pre":
-      return processPreBlock(element, ctx);
+      blocks = processPreBlock(element, ctx);
+      break;
     case "hr":
-      return [processHorizontalRule(element, ctx)];
+      blocks = [processHorizontalRule(element, ctx)];
+      break;
     default:
-      return processBlockContainer($, element, ctx);
+      blocks = processBlockContainer($, element, ctx);
+      break;
   }
+
+  // `id` on any block element → Word bookmark so `href="#id"` can jump here.
+  return prependElementBookmark(element.attribs?.id, blocks);
 }
 
 export function visitNodes(

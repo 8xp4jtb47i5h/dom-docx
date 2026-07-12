@@ -1,10 +1,12 @@
 import {
   ExternalHyperlink,
+  InternalHyperlink,
   TextRun,
   UnderlineType,
   type ParagraphChild,
 } from "docx";
 import type { AnyNode, Element } from "domhandler";
+import { internalAnchorFromHref, wrapWithBookmark } from "./bookmarks.js";
 import { BODY_FONT_HALF_POINTS, HYPERLINK_COLOR } from "./constants.js";
 import { imageRunFromElement } from "./image.js";
 import {
@@ -217,6 +219,9 @@ export function collectInlineRunsFromNodes(
 
     if (tag === "a") {
       const href = node.attribs?.href ?? "";
+      const internalAnchor = internalAnchorFromHref(href);
+      // `id` or legacy `name` makes this element a jump target as well.
+      const bookmarkId = node.attribs?.id || node.attribs?.name;
       detachTrailingSpaces(runs, inherited, defaultSize);
       const linkTypography = {
         ...typography,
@@ -234,14 +239,30 @@ export function collectInlineRunsFromNodes(
         defaultSize,
       );
       // Anchors with no inline content render as nothing in browsers (e.g. a
-      // link that only wrapped an image) — emitting the raw href is noise.
-      if (childRuns.length > 0) {
-        runs.push(new ExternalHyperlink({ link: href, children: childRuns }));
+      // link that only wrapped an image) — unless they are a named target.
+      if (childRuns.length === 0) {
+        runs.push(...wrapWithBookmark(bookmarkId, []));
+        continue;
       }
+      let linked: ParagraphChild[];
+      if (internalAnchor) {
+        linked = [new InternalHyperlink({ anchor: internalAnchor, children: childRuns })];
+      } else {
+        linked = [new ExternalHyperlink({ link: href, children: childRuns })];
+      }
+      runs.push(...wrapWithBookmark(bookmarkId, linked));
       continue;
     }
 
-    runs.push(...collectInlineRunsFromNodes(node.children ?? [], typography, state, styleResolver, defaultSize));
+    const childRuns = collectInlineRunsFromNodes(
+      node.children ?? [],
+      typography,
+      state,
+      styleResolver,
+      defaultSize,
+    );
+    // Any inline element with `id` is a fragment target (e.g. `<span id="n">`).
+    runs.push(...wrapWithBookmark(node.attribs?.id, childRuns));
   }
 
   return runs;

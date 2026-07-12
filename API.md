@@ -186,13 +186,8 @@ interface DocumentConfig {
   pageNumber?: boolean;  // centered "Page N" field appended to the footer
   lang?: string;         // spell-check locale, e.g. "en-US", "ar-SA"
   direction?: "ltr" | "rtl";
-  coverHtml?: string;    // cover page: page 1, before the TOC, then a page break
-  tableOfContents?: boolean | {
-    title?: string;         // bold heading above the TOC, e.g. "Contents"
-    headingRange?: string;  // Word heading levels to include, default "1-3"
-    hyperlink?: boolean;    // clickable entries, default true
-    pageBreakAfter?: boolean; // start the body on a fresh page after the TOC
-  };
+  coverHtml?: string;    // cover page: page 1, before the toc slot, then a page break
+  tocHtml?: string;      // caller-provided TOC: after the cover, before the body
 }
 ```
 
@@ -208,8 +203,8 @@ interface DocumentConfig {
 | `pageNumber` | `boolean` | `false` | Appends a centered `Page N` field to the footer (creates one if `footerHtml` is absent). |
 | `lang` | `string` | — | Document spell-check locale (`w:lang`), e.g. `"en-US"`. |
 | `direction` | `"ltr" \| "rtl"` | `"ltr"` | `"rtl"` sets right-to-left runs (`w:rtl`) — e.g. Arabic/Hebrew. |
-| `coverHtml` | `string` | — | HTML fragment rendered as a **cover page**: the first content in the document, before the `tableOfContents` (if any), followed by an automatic page break so the TOC/body start on the next page. Uses the inline style path like `headerHtml`/`footerHtml` (inline `style=""` + `data:` images such as a logo). When a header/footer/`pageNumber` is set, it is suppressed on the cover page (Word "different first page"). Headings inside the cover are **not** included as TOC entries. |
-| `tableOfContents` | `boolean \| { title?, headingRange?, hyperlink?, pageBreakAfter? }` | — | Inserts a **clickable, page-number-less** Table of Contents at the top, built from the document's `h1`–`h6` (mapped to Word Heading 1–6). Each entry is a hyperlink to a bookmark on its heading. Because there are no page numbers (which would require layout), the entry list is **complete at creation** — it renders correctly in every viewer (Word, LibreOffice, Google Docs, PDF/preview) with no field update and no "update fields" prompt. `headingRange` defaults to `"1-3"`; `hyperlink` (the clickable links) to `true` — set it `false` for a plain-text list. |
+| `coverHtml` | `string` | — | HTML fragment rendered as a **cover page**: the first content in the document, before the `tocHtml` slot (if any), followed by an automatic page break so the TOC/body start on the next page. Uses the inline style path like `headerHtml`/`footerHtml` (inline `style=""` + `data:` images such as a logo). When a header/footer/`pageNumber` is set, it is suppressed on the cover page (Word "different first page"). |
+| `tocHtml` | `string` | — | HTML fragment rendered as a **table-of-contents slot** — placed after `coverHtml` (if any) and before the body. You own the markup and styling — a numbered list, a boxed "On this page", columns, whatever. In-page links (`<a href="#id">`) become Word internal hyperlinks to the matching `id` bookmark in the body (dom-docx bookmarks `id` attributes — see [Elements](#elements)). Add a trailing `<div style="break-after:page"></div>` if you want the TOC on its own page. Since it's just body content rendered at a known position, there's no auto-generated field, no styling to fight, and no "update fields" prompt. |
 | `imageResolver` | `ImageResolver` | — | Resolve non-`data:` `<img src>`. See [Images](#images--the-resolver-hook). |
 | `browser` | Playwright `Browser` | — | **Node only.** Reuse an already-launched browser across many conversions. |
 | `page` | Playwright `Page` | — | **Node only.** Snapshot styles and/or rasterize from a page you already rendered. |
@@ -450,7 +445,9 @@ Lower-level Node helpers: `preparePlaywrightRasterizedExport(page, rootSelector?
 
 `h1`–`h6`, `p`, `div`, `section`, `ul`, `ol`, `li`, `table`, `thead`, `tbody`, `tfoot`, `tr`, `td`, `th`, `blockquote`, `hr`, `figure`, `figcaption`, `img`, `svg` (low-complexity), `strong`, `b`, `em`, `i`, `u`, `a`, `span`, `code`, `br`, `pre` (limited).
 
-Element attributes: table `border` / `cellpadding` / `cellspacing` / `colspan`; `href` on links; `src` / `width` / `height` / `alt` on images; list `type`. `<img>` embeds `data:` URLs by default; other `src` schemes require an [`imageResolver`](#images--the-resolver-hook). Other attributes are mostly ignored.
+Element attributes: table `border` / `cellpadding` / `cellspacing` / `colspan`; `href` on links (including same-document `#id` fragments); `id` (and legacy `a[name]`) as bookmark targets for those fragments; `src` / `width` / `height` / `alt` on images; list `type`. `<img>` embeds `data:` URLs by default; other `src` schemes require an [`imageResolver`](#images--the-resolver-hook). Other attributes are mostly ignored.
+
+Same-document links (`href="#section-id"`) become Word internal hyperlinks to a bookmark on the element with that `id` (or a legacy `<a name="…">`). External `http(s):` URLs stay relationship-based hyperlinks. Bare `href="#"` is not treated as an internal target.
 
 Unsupported tags are treated as generic block containers or skipped.
 
@@ -683,6 +680,8 @@ These exercise the API and write artifacts under `output/`:
 | `npm run score:suite:priority` | Fast subset of the same cases |
 | `npm run guard:inline` | Asserts inline path OOXML equivalence (normalized XML) |
 | `npm run guard:config` | `ConvertOptions` OOXML checks |
+| `npm run guard:toc-slot` | `tocHtml` slot placement + in-page links + schema |
+| `npm run guard:internal-href` | Same-document `href="#id"` → internal hyperlink + bookmark |
 | `npm run score:benchmark` | OSS html-to-docx / TurboDocx comparison |
 | `npm run build:browser` | esbuild → `dist/browser/dom-docx.browser.js` |
 | `npm run typecheck` | TypeScript compile check |

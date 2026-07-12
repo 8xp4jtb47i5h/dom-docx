@@ -44,6 +44,8 @@ jobs:
       - run: npm run build:browser
       - run: npm run guard:inline
       - run: npm run guard:config
+      - run: npm run guard:toc-slot
+      - run: npm run guard:internal-href
       - run: npm run guard:pack-smoke
 
       - name: Publish to npm

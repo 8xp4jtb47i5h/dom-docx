@@ -67,20 +67,22 @@ npm run score:calibration -- --full
 
 ### 3. Guards — binary pass/fail invariants
 
-Each writes a result to `output/guards/<id>.json` (via `tools/guard-result.ts`, or an inlined equivalent in `scripts/pack-smoke.mjs` since it runs via plain `node`); `docs:sync` reads whichever are present into a single status table in BENCHMARK.md. `guard:inline`, `guard:config`, `guard:toc`, and `guard:pack-smoke` need no Playwright/LibreOffice and run in CI; the remaining ones need Playwright/LibreOffice and are maintainer-only.
+Each writes a result to `output/guards/<id>.json` (via `tools/guard-result.ts`, or an inlined equivalent in `scripts/pack-smoke.mjs` since it runs via plain `node`); `docs:sync` reads whichever are present into a single status table in BENCHMARK.md. `guard:inline`, `guard:config`, `guard:toc-slot`, `guard:internal-href`, and `guard:pack-smoke` need no Playwright/LibreOffice and run in CI; the remaining ones need Playwright/LibreOffice and are maintainer-only.
 
 - **`guard:inline`** — converts every case via default options and via explicit `{ styleSource: "inline" }`; asserts byte-identical normalized `word/*.xml`. Catches accidental drift in the default path.
-- **`guard:config`** — a battery of named assertions (one per `DocumentConfig` field — `pageSize`, `margins`, `defaultFont`, `metadata`, `headerHtml`/`footerHtml`, `pageNumber`, `lang`/`direction`, `coverHtml`, `tableOfContents`, …) that each produces the correct OOXML. **Runs every assertion through both public entries** — the Node `convertHtmlToDocx` and the browser `convertHtmlToDocxUint8Array` (its inline path runs headless) — because option forwarding is duplicated per entry and has drifted before (a new option reaching one entry but not the other, with no compiler error).
+- **`guard:config`** — a battery of named assertions (one per `DocumentConfig` field — `pageSize`, `margins`, `defaultFont`, `metadata`, `headerHtml`/`footerHtml`, `pageNumber`, `lang`/`direction`, `coverHtml`, `tocHtml`, …) that each produces the correct OOXML. **Runs every assertion through both public entries** — the Node `convertHtmlToDocx` and the browser `convertHtmlToDocxUint8Array` (its inline path runs headless) — because option forwarding is duplicated per entry and has drifted before (a new option reaching one entry but not the other, with no compiler error).
 - **`guard:pack-smoke`** — `npm pack`s the real tarball, installs it into a clean temp project, and asserts: Playwright isn't a hard/optional dependency, the browser bundle files ship in the tarball, and the library/CLI/browser entry points each actually convert HTML to a valid `.docx`.
 - **`guard:computed-parity`** — computed-oracle and computed-native must emit byte-identical OOXML for identical HTML. This is what backs the claim that the "native" lane (a Playwright-driven stand-in used in the test harness) faithfully represents the real browser deployment.
 - **`guard:browser-parity`** — chained script (`build:browser && browser-spike.ts && browser-build-parity.ts`) asserting the esbuild browser IIFE bundle (`dom-docx/browser`) produces byte-identical output to the Node computed-native path.
 - **`guard:page-break`** — structural page-break test (OOXML `w:pageBreakBefore` + multi-page PDF). Not part of the visual suite — explicit breaks can't be scored with single-page pixel compare.
-- **`guard:toc`** — structural table-of-contents test for the `tableOfContents` config option. The TOC is clickable and page-number-less (page numbers need layout, so omitting them makes the entry list final at creation — no field update, no "update fields" prompt). Asserts the `w:sdt` field and its `TOC \o "…" \h \n` instruction; one clean hyperlink entry per in-range heading (no dot leader, no page number, honoring `headingRange`) with a matching `_Toc` bookmark on each heading; the absence of `w:updateFields` and of the field `w:dirty` flag; the heading styles' explicit `w:outlineLvl` (so a manual refresh still rebuilds in LibreOffice); and OOXML schema validity.
+- **`guard:toc-slot`** — structural test for the `tocHtml` option (caller-provided table of contents). Asserts the slot fragment renders after the cover and before the body; that its in-page links (`<a href="#id">`) become internal hyperlinks pointing at real `id` bookmarks in the body; the cover → toc → body ordering; and OOXML schema validity of the whole document. (In-page linking itself is covered by `guard:internal-href`.)
+- **`guard:internal-href`** — structural test for same-document links (`href="#id"`). Asserts internal hyperlinks (`w:hyperlink w:anchor`), matching bookmarks on `id` / legacy `a[name]` targets, URI-decoded fragments, that external URLs still use relationships, and OOXML schema validity. CI — no Playwright/LibreOffice.
 
 ```bash
 npm run guard:inline             # CI
 npm run guard:config             # CI
-npm run guard:toc                # CI
+npm run guard:toc-slot           # CI
+npm run guard:internal-href      # CI
 npm run guard:pack-smoke         # CI
 npm run guard:page-break         # structural page breaks (needs LibreOffice)
 npm run guard:computed-parity    # maintainer-only, needs Playwright
@@ -123,7 +125,7 @@ Scoring methodology: [docs/SCORING.md](./docs/SCORING.md). HTML authoring guide:
 
 ## Release to npm
 
-CI (`.github/workflows/ci.yml`) runs on every push/PR: typecheck, build, browser bundle, `guard:inline`, `guard:config`, and `guard:pack-smoke` — no Playwright or LibreOffice.
+CI (`.github/workflows/ci.yml`) runs on every push/PR: typecheck, build, browser bundle, `guard:inline`, `guard:config`, `guard:toc-slot`, `guard:internal-href`, and `guard:pack-smoke` — no Playwright or LibreOffice.
 
 Publishing uses **npm Trusted Publishing (OIDC)** — there is no `NPM_TOKEN` secret. The publish workflow (`.github/workflows/publish.yml`) runs when a semver tag matching `v*.*.*` is pushed to GitHub. It verifies the tag matches `"version"` in `package.json`, re-runs the same CI checks as above, then runs `npm publish --provenance --access public` (`prepack` builds the library and browser bundle).
 

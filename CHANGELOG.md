@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **`tocHtml`** — caller-provided table-of-contents "slot": an HTML fragment placed after the cover page (if any) and before the body. You control the markup and styling (numbered, boxed, columns…); in-page links (`<a href="#id">`) jump to the matching `id` in the body. Add a trailing `<div style="break-after:page"></div>` to put it on its own page. Guard: `npm run guard:toc-slot`.
+- **Internal links (`href="#id"`)** — same-document fragments become Word internal hyperlinks (`w:hyperlink w:anchor`) targeting bookmarks emitted for matching `id` attributes (and legacy `<a name>`). External URLs unchanged. Guard: `npm run guard:internal-href`.
+
+### Removed
+
+- **`tableOfContents`** (breaking) — the auto-generated, page-number-less TOC field added in 0.1.5 is removed in favor of `tocHtml` + internal links. Rather than dom-docx generating and styling the TOC, you provide the exact TOC markup and it wires up the `#id` navigation — full styling control, no field, no "update fields" prompt, nothing to keep in sync. (`TableOfContentsConfig` type and `guard:toc` removed.)
+
 ## [0.1.5] - 2026-07-10
 
 ### Added

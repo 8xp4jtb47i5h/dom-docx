@@ -169,9 +169,12 @@ Keep inline highlights **short** (a few words). Long shaded spans across line wr
 
 ```html
 <p>See <a href="https://example.com/report">the full report</a> for details.</p>
+<p>Jump to <a href="#appendix">the appendix</a>.</p>
+…
+<h2 id="appendix">Appendix</h2>
 ```
 
-Links render as Word hyperlinks (underlined, Hyperlink style). Use real `href` values.
+Links render as Word hyperlinks (underlined, Hyperlink style). External URLs use relationship-based hyperlinks; `href="#id"` becomes an internal jump to the element with that `id` (or a legacy `<a name="id">`).
 
 ### Flex (simple only)
 

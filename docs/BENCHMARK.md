@@ -15,15 +15,15 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 
 ---
 
-## Suite summary (37 cases)
+## Suite summary (1 cases)
 
 | Metric | html-to-docx | @turbodocx/html-to-docx | dom-docx |
 |--------|---:|---:|---:|
-| XML schema pass | 0 / 37 | 0 / 37 | **37 / 37** |
-| Avg **visual (layout-based)** | 66.09% | 68.27% | **96.27%** |
-| Avg editability | 100.00 | 100.00 | 99.46 |
-| Avg engine score | 82.27 | 83.57 | **95.44** |
-| Avg compile | 18.4 ms | 18.7 ms | 44.4 ms |
+| XML schema pass | 0 / 1 | 0 / 1 | **1 / 1** |
+| Avg **visual (layout-based)** | 66.09% | 68.27% | **63.76%** |
+| Avg editability | 100.00 | 100.00 | 100.00 |
+| Avg engine score | 82.27 | 83.57 | **72.99** |
+| Avg compile | 18.4 ms | 18.7 ms | 85.0 ms |
 
 Δ vs dom-docx (library − dom-docx):
 
@@ -32,8 +32,8 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 | html-to-docx | **-30.18** | -13.17 |
 | @turbodocx/html-to-docx | **-28.00** | -11.87 |
 
-**dom-docx wins 34 / 37 cases** against html-to-docx (higher layout-based visual score).
-**dom-docx wins 30 / 37 cases** against @turbodocx/html-to-docx (higher layout-based visual score).
+**dom-docx wins 34 / 1 cases** against html-to-docx (higher layout-based visual score).
+**dom-docx wins 30 / 1 cases** against @turbodocx/html-to-docx (higher layout-based visual score).
 
 ---
 
@@ -121,15 +121,6 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 | `centered-paragraph` | ✗ | 96.99% | 95.93% | +1.06 |
 | `paragraph-with-line-break` | ✗ | 96.73% | 95.42% | +1.31 |
 
-### List comparison (layout-based visual)
-
-| Library | `simple-unordered-list` | `simple-ordered-list` | `ordered-list-rich-inline` | `paragraph-and-list` | `nested-blockquotes-lists` | `unicode-emoji-content` | `ordered-list-lower-alpha` | `ordered-list-upper-roman` | `unordered-list-square` |
-|---------|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| dom-docx | **96.49%** | **96.34%** | **97.24%** | **96.20%** | **91.00%** | **96.30%** | **96.45%** | **96.24%** | **96.06%** |
-| html-to-docx | 77.16% | 95.28% | 90.66% | 84.12% | 12.11% | 49.01% | 94.31% | 93.44% | 86.71% |
-| @turbodocx/html-to-docx | 70.00% | 93.28% | 93.97% | 72.59% | 11.51% | 77.67% | 69.97% | 69.97% | 69.16% |
-
----
 
 ## Style source: inline vs computed-oracle vs computed-native (dom-docx)
 
@@ -167,11 +158,12 @@ Regenerate: `npm run score:css-cascade`.
 |-------|:------:|--------|---------|
 | Browser bundle parity | ✅ | 36/36 equivalent to Node computed-native | `npm run guard:browser-parity` |
 | Computed parity (oracle vs native) | ✅ | 36/36 byte-identical | `npm run guard:computed-parity` |
-| Config options | ✅ | 70/70 checks passed (node + browser) | `npm run guard:config` |
+| Config options | ✅ | 80/80 checks passed (node + browser) | `npm run guard:config` |
 | Inline path | ✅ | 37/37 equivalent (default vs explicit inline) | `npm run guard:inline` |
+| Internal hrefs | ✅ | 16/16 structural checks | `npm run guard:internal-href` |
 | Pack smoke | ✅ | 1/1 library + CLI + browser entry install and convert | `npm run guard:pack-smoke` |
 | Page breaks | ✅ | 9/9 OOXML + multi-page PDF + computed | `npm run guard:page-break` |
-| Table of contents | ✅ | 38/38 OOXML field structure + schema | `npm run guard:toc` |
+| TOC slot | ✅ | 9/9 OOXML slot placement + internal links + schema | `npm run guard:toc-slot` |
 <!-- SECTION:guard-status:END -->
 
 ---

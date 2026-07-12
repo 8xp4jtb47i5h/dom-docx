@@ -16,7 +16,7 @@ import type { RasterizeInPlaceOptions } from "./converter/rasterize-subtree.brow
 
 export type { StyleResolver, StyleSource } from "./converter/style-resolver.js";
 export type { ImageResolver, ResolvedImage } from "./converter/image.js";
-export type { DocumentConfig, TableOfContentsConfig } from "./converter/build-docx.js";
+export type { DocumentConfig } from "./converter/build-docx.js";
 export type { RasterizeInPlaceOptions } from "./converter/rasterize-subtree.browser.js";
 export { buildDocxUint8Array, buildDocxBlob } from "./converter/build-docx.js";
 
