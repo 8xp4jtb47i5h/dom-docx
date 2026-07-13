@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **`onWarning`** — diagnostic callback for conditions that don't fail conversion but silently degrade the output: images with no `imageResolver` (or that it couldn't resolve) fall back to alt text, and class/stylesheet-based CSS is ignored on the default `styleSource: "inline"`. Previously both failed silently — a real-world page (external stylesheet, hosted images) would convert "successfully" while quietly losing every image and all table/callout styling. Defaults to `console.warn`; pass `null` to suppress. Available on both the Node and browser entries.
+
 ## [0.1.6] - 2026-07-12
 
 ### Added

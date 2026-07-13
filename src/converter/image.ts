@@ -61,6 +61,12 @@ export function resolvedImageToDataUrl(resolved: ResolvedImage): string {
   return `data:${TYPE_TO_MIME[resolved.type]};base64,${toBase64(resolved.data)}`;
 }
 
+/** True for an `<img>` whose `src` is set but is not (yet) an inline `data:` URL. */
+export function hasUnresolvedSrc(el: Element): boolean {
+  const src = el.attribs?.src;
+  return typeof src === "string" && src.length > 0 && !/^data:/i.test(src);
+}
+
 /**
  * Pre-resolution pass (run before the synchronous tree walk): for every `<img>` whose
  * `src` is not already a `data:` URL, ask the caller's resolver for bytes and, if given,
@@ -71,12 +77,7 @@ export async function applyImageResolver(
   $: CheerioAPI,
   resolver: ImageResolver,
 ): Promise<void> {
-  const targets = $("img")
-    .toArray()
-    .filter((el) => {
-      const src = el.attribs?.src;
-      return typeof src === "string" && src.length > 0 && !/^data:/i.test(src);
-    });
+  const targets = $("img").toArray().filter(hasUnresolvedSrc);
 
   await Promise.all(
     targets.map(async (el) => {

@@ -13,12 +13,57 @@ import {
   type FileChild,
 } from "docx";
 import * as cheerio from "cheerio";
+import type { CheerioAPI } from "cheerio";
 import { unzipSync, zipSync } from "fflate";
 import { BODY_FONT, BODY_FONT_HALF_POINTS, NUMBERING_CONFIG, PAGE_MARGIN_TWIPS } from "./constants.js";
 import { patchDocumentXml, patchNumberingXml } from "./ooxml-patch.js";
-import { applyImageResolver, resetImageDocPrIds, type ImageResolver } from "./image.js";
+import { applyImageResolver, hasUnresolvedSrc, resetImageDocPrIds, type ImageResolver } from "./image.js";
 import { INLINE_STYLE_RESOLVER, type StyleResolver } from "./style-resolver.js";
 import { htmlToDocxBlocks } from "./visitor.js";
+
+/**
+ * Diagnostic callback for conditions that don't fail the conversion but silently
+ * degrade the output (an image that never embeds, styling that never applies).
+ * Pass `null` to suppress the default `console.warn`.
+ */
+export type WarningHandler = (message: string) => void;
+
+function resolveWarningHandler(onWarning: WarningHandler | null | undefined): WarningHandler {
+  if (onWarning === null) return () => {};
+  return onWarning ?? ((message) => console.warn(message));
+}
+
+/**
+ * Flag conditions that produce a structurally valid but visually degraded docx —
+ * dropped images, ignored class/stylesheet CSS — so they surface instead of being
+ * discovered only by opening the file. Best-effort heuristics, not exhaustive.
+ */
+function emitDegradationWarnings(
+  $: CheerioAPI,
+  styleResolver: StyleResolver,
+  hadImageResolver: boolean,
+  warn: WarningHandler,
+): void {
+  const unresolvedImages = $("img").toArray().filter(hasUnresolvedSrc).length;
+  if (unresolvedImages > 0) {
+    warn(
+      hadImageResolver
+        ? `dom-docx: ${unresolvedImages} image(s) could not be resolved by imageResolver (returned null or threw) — they will render as alt text only.`
+        : `dom-docx: ${unresolvedImages} image(s) have a non-data: src (remote/relative URL) and no imageResolver was provided — they will render as alt text only. Pass options.imageResolver to embed them.`,
+    );
+  }
+
+  if (styleResolver === INLINE_STYLE_RESOLVER) {
+    const hasStylesheetSignal = $("style").length > 0 || $('link[rel="stylesheet"]').length > 0;
+    if (hasStylesheetSignal) {
+      warn(
+        'dom-docx: detected a <style> block or external stylesheet, but styleSource is "inline" (the default) — ' +
+          "only inline style=\"\" attributes are read, so class-based CSS is ignored. Pass styleSource: \"computed\" " +
+          "to resolve it (Node: requires Playwright; browser: uses the live DOM).",
+      );
+    }
+  }
+}
 
 /** Page/font/metadata options (Tier 1 `ConvertOptions`). All lengths in inches / points. */
 export interface DocumentConfig {
@@ -267,11 +312,13 @@ export async function buildDocxUint8Array(
   styleResolver: StyleResolver,
   imageResolver?: ImageResolver,
   documentConfig?: DocumentConfig,
+  onWarning?: WarningHandler | null,
 ): Promise<Uint8Array> {
   resetImageDocPrIds();
   const resolved = resolveDocumentConfig(documentConfig);
   const $ = cheerio.load(`<body>${html.trim()}</body>`, { xml: false });
   if (imageResolver) await applyImageResolver($, imageResolver);
+  emitDegradationWarnings($, styleResolver, Boolean(imageResolver), resolveWarningHandler(onWarning));
   const children = htmlToDocxBlocks($, styleResolver, resolved.fontHalfPoints);
   const chrome = {
     header: buildHeader(documentConfig, resolved),
@@ -289,8 +336,9 @@ export async function buildDocxBlob(
   styleResolver: StyleResolver,
   imageResolver?: ImageResolver,
   documentConfig?: DocumentConfig,
+  onWarning?: WarningHandler | null,
 ): Promise<Blob> {
-  const bytes = await buildDocxUint8Array(html, styleResolver, imageResolver, documentConfig);
+  const bytes = await buildDocxUint8Array(html, styleResolver, imageResolver, documentConfig, onWarning);
   return new Blob([bytes.slice()], {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   });

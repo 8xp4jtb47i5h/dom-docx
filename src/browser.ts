@@ -1,4 +1,4 @@
-import { buildDocxUint8Array, type DocumentConfig } from "./converter/build-docx.js";
+import { buildDocxUint8Array, type DocumentConfig, type WarningHandler } from "./converter/build-docx.js";
 import { snapshotComputedStylesFromDocument } from "./converter/computed-style-snapshot.js";
 import type { ImageResolver } from "./converter/image.js";
 import {
@@ -13,7 +13,7 @@ import {
 
 export type { ImageResolver, ResolvedImage } from "./converter/image.js";
 export type { StyleResolver, StyleSource } from "./converter/style-resolver.js";
-export type { DocumentConfig } from "./converter/build-docx.js";
+export type { DocumentConfig, WarningHandler } from "./converter/build-docx.js";
 export type { RasterizeInPlaceOptions } from "./converter/rasterize-subtree.browser.js";
 export { buildDocxBlob, buildDocxUint8Array } from "./converter/build-docx.js";
 export { snapshotComputedStylesFromDocument } from "./converter/computed-style-snapshot.js";
@@ -36,6 +36,13 @@ export interface BrowserConvertOptions extends DocumentConfig {
   rasterizeInPlace?: boolean | RasterizeInPlaceOptions;
   /** Resolve non-`data:` `<img src>` before conversion (caller owns fetch policy). */
   imageResolver?: ImageResolver;
+  /**
+   * Called for conditions that don't fail the conversion but silently degrade the
+   * output — e.g. images with no `imageResolver` (or that it couldn't resolve), or
+   * class/stylesheet-based CSS ignored on the default `"inline"` `styleSource`.
+   * Defaults to `console.warn`; pass `null` to suppress.
+   */
+  onWarning?: WarningHandler | null;
 }
 
 export async function convertHtmlToDocxUint8Array(
@@ -79,6 +86,7 @@ export async function convertHtmlToDocxUint8Array(
       resolver,
       options?.imageResolver,
       options,
+      options?.onWarning,
     );
   } finally {
     cleanup();

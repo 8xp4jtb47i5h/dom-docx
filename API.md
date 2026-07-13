@@ -125,6 +125,7 @@ interface BrowserConvertOptions extends DocumentConfig {
   root?: Element;                       // export root for computed + rasterize (SPA pattern)
   rasterizeInPlace?: boolean | RasterizeInPlaceOptions;
   imageResolver?: ImageResolver;
+  onWarning?: WarningHandler | null; // default console.warn; null to suppress
 }
 
 interface RasterizeInPlaceOptions {
@@ -167,6 +168,7 @@ interface ConvertOptions extends DocumentConfig {
   rootSelector?: string;                // Node — export root when converting element.innerHTML from a live page
   rasterizeInPlace?: boolean | RasterizeInPlaceOptions;
   imageResolver?: ImageResolver;
+  onWarning?: WarningHandler | null;    // default console.warn; null to suppress
 }
 
 interface DocumentConfig {
@@ -210,6 +212,7 @@ interface DocumentConfig {
 | `page` | Playwright `Page` | — | **Node only.** Snapshot styles and/or rasterize from a page you already rendered. |
 | `rootSelector` | `string` | — | **Node only.** CSS selector for the export root when passing `element.innerHTML` from a live `page`. Must match the node whose HTML you convert. |
 | `rasterizeInPlace` | `boolean \| RasterizeInPlaceOptions` | — | Rasterize `<canvas>` and complex `<svg>` (e.g. Highcharts) to PNG `<img>` before conversion. Uses Playwright on Node. See [Charts & rasterizeInPlace](#charts--rasterizeinplace). **Recommended for charts:** `{ scale: 2 }`. |
+| `onWarning` | `((message: string) => void) \| null` | `console.warn` | Called when the output silently degrades — images with no (or failing) `imageResolver` fall back to alt text, or class/stylesheet CSS is ignored on the default `styleSource: "inline"`. Pass `null` to suppress. |
 
 ```typescript
 const docx = await convertHtmlToDocx(html, {
@@ -505,7 +508,7 @@ See [AGENTS.md](./AGENTS.md) for the full tier list. In short:
 
 ## Lower-level API
 
-### `buildDocxBuffer(html, styleResolver, imageResolver?, documentConfig?)`
+### `buildDocxBuffer(html, styleResolver, imageResolver?, documentConfig?, onWarning?)`
 
 Use when you already have a **`StyleResolver`** (or want to convert many fragments with one resolver / one browser session).
 
@@ -521,6 +524,7 @@ const docx = await buildDocxBuffer(html, INLINE_STYLE_RESOLVER);
 | `styleResolver` | `StyleResolver` | Supplies `getCss()` for every element during the visit. |
 | `imageResolver` | `ImageResolver` | Optional. Same hook as [`ConvertOptions`](#images--the-resolver-hook). |
 | `documentConfig` | `DocumentConfig` | Optional. Page/font/metadata options. |
+| `onWarning` | `((message: string) => void) \| null` | Optional. Same hook as [`ConvertOptions`](#options-convertoptions); defaults to `console.warn`. |
 
 Platform-neutral variants: **`buildDocxUint8Array`** (same signature, returns `Uint8Array`) and **`buildDocxBlob`** (returns `Blob`) — exported from both entry points.
 

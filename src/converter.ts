@@ -11,12 +11,12 @@ import {
   preparePlaywrightRasterizedExport,
 } from "./converter/style-resolver-node.js";
 import type { ImageResolver, ResolvedImage } from "./converter/image.js";
-import type { DocumentConfig } from "./converter/build-docx.js";
+import type { DocumentConfig, WarningHandler } from "./converter/build-docx.js";
 import type { RasterizeInPlaceOptions } from "./converter/rasterize-subtree.browser.js";
 
 export type { StyleResolver, StyleSource } from "./converter/style-resolver.js";
 export type { ImageResolver, ResolvedImage } from "./converter/image.js";
-export type { DocumentConfig } from "./converter/build-docx.js";
+export type { DocumentConfig, WarningHandler } from "./converter/build-docx.js";
 export type { RasterizeInPlaceOptions } from "./converter/rasterize-subtree.browser.js";
 export { buildDocxUint8Array, buildDocxBlob } from "./converter/build-docx.js";
 
@@ -49,6 +49,13 @@ export interface ConvertOptions extends DocumentConfig {
    * only inline `data:` URLs embed; other images fall back to alt text.
    */
   imageResolver?: ImageResolver;
+  /**
+   * Called for conditions that don't fail the conversion but silently degrade the
+   * output — e.g. images with no `imageResolver` (or that it couldn't resolve), or
+   * class/stylesheet-based CSS ignored on the default `"inline"` `styleSource`.
+   * Defaults to `console.warn`; pass `null` to suppress.
+   */
+  onWarning?: WarningHandler | null;
   // Page layout, default font, and metadata come from DocumentConfig (pageSize,
   // orientation, margins, defaultFont, metadata).
 }
@@ -137,8 +144,11 @@ export async function buildDocxBuffer(
   styleResolver: StyleResolver,
   imageResolver?: ImageResolver,
   docConfig?: DocumentConfig,
+  onWarning?: WarningHandler | null,
 ): Promise<Buffer> {
-  return Buffer.from(await buildDocxUint8Array(html, styleResolver, imageResolver, docConfig));
+  return Buffer.from(
+    await buildDocxUint8Array(html, styleResolver, imageResolver, docConfig, onWarning),
+  );
 }
 
 export async function convertHtmlToDocx(
@@ -159,6 +169,7 @@ export async function convertHtmlToDocx(
       resolver,
       options?.imageResolver,
       options,
+      options?.onWarning,
     );
   } finally {
     if (cleanupRasterize) await cleanupRasterize();
