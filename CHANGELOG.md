@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Flex cards no longer clip wrapping content.** A `display:flex` container sizes each card row from an estimate of one line per block child; that estimate was applied as an EXACT row height, so any content taller than the estimate was cropped — a long heading inside a flex wrapper (e.g. a docs page's `.titlepage`) wrapped to a second line and had that line sliced off in LibreOffice. Flex card rows now use AT_LEAST height: they still floor at the estimate (so tight single-line cards don't inflate) but grow to fit wrapping/nested content. The `flex-row-horizontal` visual suite case now uses multi-line wrapping content as a regression guard.
+
 ### Added
 
 - **`onWarning`** — diagnostic callback for conditions that don't fail conversion but silently degrade the output: images with no `imageResolver` (or that it couldn't resolve) fall back to alt text, and class/stylesheet-based CSS is ignored on the default `styleSource: "inline"`. Previously both failed silently — a real-world page (external stylesheet, hosted images) would convert "successfully" while quietly losing every image and all table/callout styling. Defaults to `console.warn`; pass `null` to suppress. Available on both the Node and browser entries.

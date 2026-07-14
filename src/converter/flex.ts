@@ -38,11 +38,11 @@ export interface FlexItemContent {
   /** Shrink-wrapped column width when flex items have no flex-grow. */
   intrinsicWidthTwips?: number;
   /**
-   * Estimated tight content height (twips) for text card-style items with block children.
-   * LibreOffice sizes rows by natural font metrics (ignoring EXACT line spacing), so an
-   * explicit exact row height is needed to keep text cards from inflating vertically.
-   * Omitted for items that wrap raster `<img>` / `<canvas>` — EXACT fights the drawing
-   * and overflows neighboring content in LibreOffice.
+   * Estimated content height (twips) for text card-style items with block children —
+   * used as an AT_LEAST floor on the row so LibreOffice doesn't collapse/inflate tight
+   * cards (it sizes rows by natural font metrics). The row still grows past this to fit
+   * wrapping/nested content. Omitted for items that wrap raster `<img>` / `<canvas>` so
+   * the drawing sizes the row instead.
    */
   contentHeightTwips?: number;
   /** CSS `min-height` (twips) — a floor applied to the flex row as AT_LEAST height. */
@@ -237,23 +237,21 @@ export function makeFlexRowTable(
     }
   });
 
-  // Card rows (text-only): LibreOffice sizes rows by natural font metrics, inflating
-  // cards. Force an exact row height = the tallest item's tight content height.
-  // Items with raster media omit contentHeightTwips so the drawing sizes the row —
-  // EXACT + chart-wrapper CSS heights overflows neighboring text in LibreOffice.
+  // Card rows: floor the row at the tallest item's estimated content height so
+  // LibreOffice (which sizes rows by natural font metrics) doesn't inflate tight
+  // cards — but use AT_LEAST, never EXACT. EXACT clips any content taller than the
+  // estimate, and the estimate (one line per direct block child) badly under-counts
+  // wrapped headings and nested content: a long heading in a flex wrapper wrapped to
+  // two lines and had its second line sliced off. AT_LEAST keeps single-line cards
+  // tight (natural height ≈ the estimate) while letting wrapping content grow.
+  // Items with raster media omit contentHeightTwips so the drawing sizes the row.
   const maxContentHeight = Math.max(0, ...items.map((it) => it.contentHeightTwips ?? 0));
   const maxMinHeight = Math.max(0, ...items.map((it) => it.minHeightTwips ?? 0));
-  let rowOptions: { children: TableCell[]; height?: { value: number; rule: (typeof HeightRule)[keyof typeof HeightRule] } };
-  if (maxContentHeight > 0) {
-    // Text cards: EXACT, but never shorter than a declared `min-height`.
-    rowOptions = { children: cells, height: { value: Math.max(maxContentHeight, maxMinHeight), rule: HeightRule.EXACT } };
-  } else if (maxMinHeight > 0) {
-    // Media / min-height cards: AT_LEAST the `min-height` so the box matches the CSS
-    // floor and still grows to fit a taller drawing.
-    rowOptions = { children: cells, height: { value: maxMinHeight, rule: HeightRule.ATLEAST } };
-  } else {
-    rowOptions = { children: cells };
-  }
+  const floor = Math.max(maxContentHeight, maxMinHeight);
+  const rowOptions: { children: TableCell[]; height?: { value: number; rule: (typeof HeightRule)[keyof typeof HeightRule] } } =
+    floor > 0
+      ? { children: cells, height: { value: floor, rule: HeightRule.ATLEAST } }
+      : { children: cells };
 
   const inner = new Table({
     width: { size: totalWidth, type: WidthType.DXA },

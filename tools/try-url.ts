@@ -1,35 +1,39 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S npx tsx
 // Ad-hoc: convert a real, live webpage to .docx for manual inspection.
 // Not part of the test suite — just a way to point the converter at arbitrary
 // URLs (like the Red Hat docs page from the bug report) and see what happens.
 //
-// Usage:
-//   node scripts/try-url.mjs <url> [contentSelector] [outFile]
+// Usage (run with tsx — it imports TypeScript from src/):
+//   npx tsx tools/try-url.ts <url> [contentSelector] [outFile]
 //
 // Examples:
-//   node scripts/try-url.mjs https://docs.redhat.com/.../managing_storage_devices/index
-//   node scripts/try-url.mjs https://example.com "main" out.docx
+//   npx tsx tools/try-url.ts https://docs.redhat.com/.../managing_storage_devices/index ".content"
+//   npx tsx tools/try-url.ts https://example.com "main" out.docx
 import { writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
-import { convertHtmlToDocx } from "../src/index.ts";
+import { convertHtmlToDocx, type ImageResolver } from "../src/index.js";
 
 const [, , url, contentSelector = "body", outFile = "try-url-output.docx"] = process.argv;
 if (!url) {
-  console.error("Usage: node scripts/try-url.mjs <url> [contentSelector] [outFile]");
+  console.error("Usage: npx tsx tools/try-url.ts <url> [contentSelector] [outFile]");
   process.exit(1);
 }
 
-const browser = await chromium.launch();
+// Headed: some sites block/stall the headless UA. This also uses a real Chrome
+// user-agent (no "HeadlessChrome"), which gets past most bot checks.
+const browser = await chromium.launch({ headless: false });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-  await page.goto(url, { waitUntil: "networkidle" });
+  // `networkidle` often never settles on chatty docs sites (analytics, long-poll)
+  // and times out — wait for `load` (all resources fetched) with a generous cap.
+  await page.goto(url, { waitUntil: "load", timeout: 60_000 });
 
   const root = await page.$(contentSelector);
   if (!root) throw new Error(`no element matched selector "${contentSelector}" on ${url}`);
 
   // Unsanitized fetch-based resolver — fine for local, one-off inspection.
   // Do NOT ship this as-is: no host allowlist, no size cap, no private-IP guard.
-  const imageResolver = async (src) => {
+  const imageResolver: ImageResolver = async (src) => {
     try {
       const absolute = new URL(src, url).href;
       const res = await fetch(absolute);

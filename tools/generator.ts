@@ -325,12 +325,18 @@ const EDGE_TEST_CASES: TestCase[] = [
   },
   {
     name: "flex-row-horizontal",
-    description: "`display:flex; flex-direction:row` — three columns with gap",
+    description: "`display:flex; flex-direction:row` — three columns with gap and wrapping content",
     html: `
       <div style="display:flex;flex-direction:row;gap:12px;padding:8px;background:#f0f0f0">
-        <div style="background:#ccffcc;padding:8px;text-align:center">Alpha</div>
-        <div style="background:#ccccff;padding:8px;text-align:center">Beta</div>
-        <div style="background:#ffcccc;padding:8px;text-align:center">Gamma</div>
+        <div style="background:#ccffcc;padding:8px">
+          <strong>Alpha</strong> — persistent attributes for identifying file systems and block devices across every storage backend.
+        </div>
+        <div style="background:#ccccff;padding:8px">
+          <strong>Beta</strong> — a deliberately long column body that must wrap onto several lines without clipping the tail.
+        </div>
+        <div style="background:#ffcccc;padding:8px">
+          <strong>Gamma</strong> — a third card whose text also wraps across two lines.
+        </div>
       </div>
     `,
   },
