@@ -31,15 +31,21 @@ try {
   const root = await page.$(contentSelector);
   if (!root) throw new Error(`no element matched selector "${contentSelector}" on ${url}`);
 
-  // Unsanitized fetch-based resolver — fine for local, one-off inspection.
+  // Unsanitized resolver — fine for local, one-off inspection.
   // Do NOT ship this as-is: no host allowlist, no size cap, no private-IP guard.
+  //
+  // Fetch through the browser's request context (page.request), NOT a bare Node
+  // `fetch`: it reuses the page's cookies, real user-agent, and origin, so image
+  // CDNs behind a bot filter (e.g. Akamai on access.redhat.com) serve the bytes
+  // instead of a challenge/403. A plain fetch from Node silently returned nothing,
+  // so every image dropped to alt text and the figures came out empty.
   const imageResolver: ImageResolver = async (src) => {
     try {
       const absolute = new URL(src, url).href;
-      const res = await fetch(absolute);
-      if (!res.ok) return null;
-      const buf = new Uint8Array(await res.arrayBuffer());
-      const ct = res.headers.get("content-type") ?? "";
+      const res = await page.request.get(absolute, { headers: { referer: url } });
+      if (!res.ok()) return null;
+      const buf = new Uint8Array(await res.body());
+      const ct = res.headers()["content-type"] ?? "";
       const type = ct.includes("png") ? "png" : ct.includes("gif") ? "gif" : ct.includes("bmp") ? "bmp" : "jpg";
       return { data: buf, type };
     } catch {

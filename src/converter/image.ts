@@ -1,6 +1,10 @@
 import { ImageRun } from "docx";
 import type { CheerioAPI } from "cheerio";
 import type { Element } from "domhandler";
+import { PRINTABLE_CONTENT_WIDTH_TWIPS } from "./constants.js";
+
+/** Printable content width in CSS px (9360 twips ÷ 15 twips/px at 96 DPI = 624px). */
+const MAX_IMAGE_WIDTH_PX = PRINTABLE_CONTENT_WIDTH_TWIPS / 15;
 
 type ImageType = "png" | "jpg" | "gif" | "bmp";
 
@@ -185,6 +189,15 @@ export function imageRunFromElement(element: Element): ImageRun | null {
   else if (!width && !height) {
     width = natural?.w ?? 200;
     height = natural?.h ?? 150;
+  }
+
+  // Clamp to the printable content width (aspect-preserved), like a browser's
+  // `max-width: 100%`. Without this, a full-resolution image (e.g. a 1520px docs
+  // diagram) is emitted at its natural pixel size — ~16" wide — so it overflows the
+  // page margins, gets its right edge clipped, and spills across pages.
+  if (width! > MAX_IMAGE_WIDTH_PX) {
+    height = Math.round((MAX_IMAGE_WIDTH_PX / width!) * height!);
+    width = Math.round(MAX_IMAGE_WIDTH_PX);
   }
 
   const docPrId = String(nextImageDocPrId++);

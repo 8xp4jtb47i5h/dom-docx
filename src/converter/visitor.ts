@@ -214,6 +214,13 @@ function resolveBlockLayout(ctx: VisitorContext, element: Element): BlockLayout 
   if (ctx.pageBreakBeforeNext) {
     layout.pageBreakBefore = true;
   }
+  // A background on a media-only wrapper (e.g. a figure image inside a styled link or
+  // "open in modal" trigger) is web chrome the image sits on — painting it as a filled
+  // block adds nothing to a flat document and shows as a bare colored box when the image
+  // can't be resolved. Drop the fill so the image (or its alt text) stands on its own.
+  if (layout.shading?.fill && isMediaOnlyContainer(element)) {
+    layout.shading = undefined;
+  }
   return layout;
 }
 
@@ -593,6 +600,32 @@ function emitFlowBlocks(
   return blocks.length > 0 ? blocks : emitBlockContent([], blockLayout, extra, containerElement);
 }
 
+/**
+ * A container whose visible content is only media (`<img>`/`<svg>`/`<canvas>`/`<picture>`)
+ * with no meaningful text — e.g. a figure image wrapped in a styled link or "open in modal"
+ * trigger. Its computed `background-color` is web chrome the image sits on top of; painting
+ * it as a filled block adds nothing to a flat document and renders as a bare colored box when
+ * the image can't be resolved (the exact "blue box" seen converting real docs pages). Callers
+ * drop the container fill in this case.
+ */
+function isMediaOnlyContainer(element: Element): boolean {
+  let hasMedia = false;
+  let hasText = false;
+  const walk = (nodes: AnyNode[]): void => {
+    for (const node of nodes) {
+      if (node.type === "text") {
+        if ((node.data ?? "").trim()) hasText = true;
+      } else if (isElement(node)) {
+        const tag = node.name.toLowerCase();
+        if (tag === "img" || tag === "svg" || tag === "canvas" || tag === "picture") hasMedia = true;
+        walk(node.children ?? []);
+      }
+    }
+  };
+  walk(element.children ?? []);
+  return hasMedia && !hasText;
+}
+
 /** True when the flex item subtree contains a raster `<img>` / `<canvas>`. */
 function flexItemHasRasterMedia(item: Element): boolean {
   const walk = (el: Element): boolean => {
@@ -667,7 +700,7 @@ function processFlexContainer(
 
   const containerLayout = resolveBlockLayout(ctx, element);
   const childCtx: VisitorContext = { ...ctx, inheritedLayout: undefined };
-  const items = flexItemElements(element).map((item) => {
+  const items = flexItemElements(element, ctx.styleResolver).map((item) => {
     const itemCss = ctx.styleResolver.getCss(item);
     const itemLayout = cssToBlockLayout(itemCss);
     const typography = typographyFromBlockElement(item, ctx.styleResolver);
@@ -715,6 +748,13 @@ function processFlexContainer(
       ],
     };
   });
+
+  // A flex container with no visible items renders nothing — don't emit an empty
+  // table, and above all don't paint its background as a filled block. Real docs
+  // pages wrap figures in a `display:flex` "open in modal" control whose actual
+  // content is hidden/lazy in the export; all that survives is the container's
+  // background-color, which otherwise becomes a bare colored box (the "blue box").
+  if (items.length === 0) return [];
 
   const table =
     flex.direction === "column"
