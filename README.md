@@ -16,9 +16,9 @@ Requires **Node.js ≥ 20**. No browser or Playwright is needed for the default 
 
 ### When is Playwright needed?
 
-| Entry                            | `styleSource: "inline"` | `styleSource: "computed"` | `rasterizeInPlace` |
-| -------------------------------- | ----------------------- | ------------------------- | ------------------ |
-| **Node** (`dom-docx`)            | Pure JS, no browser     | **Playwright + Chromium** | **Playwright + Chromium** (same headless page) |
+| Entry                            | `styleSource: "inline"` | `styleSource: "computed"`                | `rasterizeInPlace`                                 |
+| -------------------------------- | ----------------------- | ---------------------------------------- | -------------------------------------------------- |
+| **Node** (`dom-docx`)            | Pure JS, no browser     | **Playwright + Chromium**                | **Playwright + Chromium** (same headless page)     |
 | **Browser** (`dom-docx/browser`) | Pure JS, no live DOM    | **Live page**: native `getComputedStyle` | **Live page**: canvas/SVG → PNG `<img>` in the tab |
 
 On Node, `playwright` is an **optional peer dependency**. `npm install dom-docx` pulls only `docx`, `cheerio` and `fflate`, nothing heavy. It is loaded lazily when you pass `styleSource: "computed"` or `rasterizeInPlace`. To use those paths, install Playwright and Chromium yourself, once:
@@ -156,24 +156,24 @@ const docx = await convertHtmlToDocx(html, {
 
 ### Options
 
-| Option                      | Default       | Description                                                                                                                                                                                                      |
-| --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `styleSource`               | `"inline"`    | `"inline"` parses `style=""` only (pure JS, fast). `"computed"` uses `getComputedStyle`. On **Node** this requires Playwright + Chromium; in the **browser bundle** it reads from the live DOM (no Playwright). |
-| `browser` / `page`          | —             | **Node only.** Reuse an open Playwright browser or page (computed styles and/or `rasterizeInPlace`). Not used by `dom-docx/browser`. |
-| `rootSelector`              | —             | **Node only.** CSS selector for the export root when converting `element.innerHTML` from a live Playwright `page`. Must match the node whose HTML you pass. |
-| `rasterizeInPlace`          | —             | Rasterize `<canvas>` / chart `<svg>` to PNG `<img>` before conversion. **Recommended:** `{ scale: 2 }` for chart exports. **Node:** Playwright page; **browser:** requires `root`. See [API.md](./API.md#charts--rasterizeinplace). |
-| `imageResolver`             | —             | Hook to fetch non-`data:` `<img src>` (library never fetches on its own).                                                                                                                                        |
-| `onWarning`                 | `console.warn` | Called when output silently degrades — unresolved images, or class/stylesheet CSS ignored on `styleSource: "inline"`. Pass `null` to suppress.                                                                |
-| `pageSize`                  | `"letter"`    | `"letter"`, `"a4"` or `{ width, height }` in inches.                                                                                                                                                            |
-| `orientation`               | `"portrait"`  | `"landscape"` swaps dimensions.                                                                                                                                                                                  |
-| `margins`                   | `1` inch each | Per-side overrides in inches.                                                                                                                                                                                    |
-| `defaultFont`               | Arial 10.5pt  | `{ family, sizePt }` for body text without explicit CSS.                                                                                                                                                         |
-| `metadata`                  | —             | `title`, `subject`, `creator`, `keywords[]`, `description` → `docProps/core.xml`.                                                                                                                                |
-| `headerHtml` / `footerHtml` | —             | HTML fragments for page header/footer.                                                                                                                                                                           |
-| `pageNumber`                | `false`       | Appends centered `Page N` field to footer.                                                                                                                                                                       |
-| `lang` / `direction`        | —             | Spell-check locale; `"rtl"` for right-to-left.                                                                                                                                                                   |
-| `coverHtml`                 | —             | HTML fragment rendered as a cover page — the first content, before the TOC, followed by an automatic page break. Inline styles + `data:` images (e.g. a logo). Header/footer/page number are suppressed on the cover page. |
-| `tocHtml`                   | —             | HTML fragment rendered as a table-of-contents "slot" — placed after the cover, before the body. **You** control the markup/styling (numbered, boxed, columns…); in-page links (`<a href="#id">`) jump to the matching `id` in the body. Add a trailing `<div style="break-after:page"></div>` to put it on its own page. |
+| Option                      | Default        | Description                                                                                                                                                                                                                                                                                                              |
+| --------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `styleSource`               | `"inline"`     | `"inline"` parses `style=""` only (pure JS, fast). `"computed"` uses `getComputedStyle`. On **Node** this requires Playwright + Chromium; in the **browser bundle** it reads from the live DOM (no Playwright).                                                                                                          |
+| `browser` / `page`          | —              | **Node only.** Reuse an open Playwright browser or page (computed styles and/or `rasterizeInPlace`). Not used by `dom-docx/browser`.                                                                                                                                                                                     |
+| `rootSelector`              | —              | **Node only.** CSS selector for the export root when converting `element.innerHTML` from a live Playwright `page`. Must match the node whose HTML you pass.                                                                                                                                                              |
+| `rasterizeInPlace`          | —              | Rasterize `<canvas>` / chart `<svg>` to PNG `<img>` before conversion. **Recommended:** `{ scale: 2 }` for chart exports. **Node:** Playwright page; **browser:** requires `root`. See [API.md](./API.md#charts--rasterizeinplace).                                                                                      |
+| `imageResolver`             | —              | Hook to fetch non-`data:` `<img src>` (library never fetches on its own).                                                                                                                                                                                                                                                |
+| `onWarning`                 | `console.warn` | Called when output silently degrades — unresolved images, or class/stylesheet CSS ignored on `styleSource: "inline"`. Pass `null` to suppress.                                                                                                                                                                           |
+| `pageSize`                  | `"letter"`     | `"letter"`, `"a4"` or `{ width, height }` in inches.                                                                                                                                                                                                                                                                     |
+| `orientation`               | `"portrait"`   | `"landscape"` swaps dimensions.                                                                                                                                                                                                                                                                                          |
+| `margins`                   | `1` inch each  | Per-side overrides in inches.                                                                                                                                                                                                                                                                                            |
+| `defaultFont`               | Arial 10.5pt   | `{ family, sizePt }` for body text without explicit CSS.                                                                                                                                                                                                                                                                 |
+| `metadata`                  | —              | `title`, `subject`, `creator`, `keywords[]`, `description` → `docProps/core.xml`.                                                                                                                                                                                                                                        |
+| `headerHtml` / `footerHtml` | —              | HTML fragments for page header/footer.                                                                                                                                                                                                                                                                                   |
+| `pageNumber`                | `false`        | Appends centered `Page N` field to footer.                                                                                                                                                                                                                                                                               |
+| `lang` / `direction`        | —              | Spell-check locale; `"rtl"` for right-to-left.                                                                                                                                                                                                                                                                           |
+| `coverHtml`                 | —              | HTML fragment rendered as a cover page — the first content, before the TOC, followed by an automatic page break. Inline styles + `data:` images (e.g. a logo). Header/footer/page number are suppressed on the cover page.                                                                                               |
+| `tocHtml`                   | —              | HTML fragment rendered as a table-of-contents "slot" — placed after the cover, before the body. **You** control the markup/styling (numbered, boxed, columns…); in-page links (`<a href="#id">`) jump to the matching `id` in the body. Add a trailing `<div style="break-after:page"></div>` to put it on its own page. |
 
 ### Images
 
@@ -228,13 +228,13 @@ For advanced usage (`buildDocxBuffer`, custom `StyleResolver`, engine architectu
 
 Optimized for **Word-friendly semantic HTML**: headings, paragraphs, lists, data tables, inline formatting, shaded callouts, simple flex rows.
 
-| Excellent                      | Good                            | Avoid (or use `rasterizeInPlace`)  |
-| ------------------------------ | ------------------------------- | ---------------------------------- |
-| Headings, lists, simple tables | Shaded banners, flex (≤4 items) | Live chart libraries (Highcharts, canvas) unless rasterized |
-| Inline `strong` / `em` / links | Table row/cell backgrounds      | Complex SVG paths/gradients unless rasterized |
-| Explicit page breaks (`break-before: page`, `break-after: page`) | | CSS grid, floats, absolute layout |
-| Short span highlights          | Blockquotes, `<hr>`             | External stylesheets (inline path) |
-| Simple SVG bars (rect + text)  | `data:` images                  | Forms, web fonts, CSS grid/float layout |
+| Excellent                                                        | Good                            | Avoid (or use `rasterizeInPlace`)                           |
+| ---------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------- |
+| Headings, lists, simple tables                                   | Shaded banners, flex (≤4 items) | Live chart libraries (Highcharts, canvas) unless rasterized |
+| Inline `strong` / `em` / links                                   | Table row/cell backgrounds      | Complex SVG paths/gradients unless rasterized               |
+| Explicit page breaks (`break-before: page`, `break-after: page`) |                                 | CSS grid, floats, absolute layout                           |
+| Short span highlights                                            | Blockquotes, `<hr>`             | External stylesheets (inline path)                          |
+| Simple SVG bars (rect + text)                                    | `data:` images                  | Forms, web fonts, CSS grid/float layout                     |
 
 Full authoring guide for agents: [AGENTS.md](./AGENTS.md).
 
@@ -288,9 +288,13 @@ Prerequisites for the harness: **LibreOffice** (`soffice`) for PDF rasterization
 | [SCORING.md](./docs/SCORING.md)         | Validation methodology and engine score                 |
 | [TEST-SCORES.md](./docs/TEST-SCORES.md) | Latest suite metrics and per-case scores                |
 | [BENCHMARK.md](./docs/BENCHMARK.md)     | Comparison vs OSS html-to-docx libraries                |
-| [examples/](./examples/)                | Sample HTML, DOCX output and side-by-side previews     |
+| [examples/](./examples/)                | Sample HTML, DOCX output and side-by-side previews      |
 | [SHOWCASE.md](./docs/SHOWCASE.md)       | How to run and extend showcase examples                 |
 | [CONTRIBUTING.md](./CONTRIBUTING.md)    | Library vs harness layout, dev setup                    |
+
+## Related projects
+
+- **[canvas-word](https://github.com/Forevka/canvas-word)** — a Word-style editor for the browser that can open and edit the `.docx` files dom-docx generates. Canvas-rendered, page-accurate, MIT. [Live demo](https://doc-editor.forevka.dev/).
 
 ## License
 
