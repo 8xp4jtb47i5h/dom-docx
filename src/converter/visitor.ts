@@ -52,6 +52,7 @@ import {
   parseFlexLayoutFromCss,
 } from "./flex.js";
 import {
+  atLeastLineTwipsForSuperSubInline,
   collectInlineRunsFromNodes,
   getDirectBlockChildren,
   getInlineOrTextNodes,
@@ -579,6 +580,11 @@ function emitFlowBlocks(
     // Rasterized chart images need a taller line box or LibreOffice clips them.
     const textLineTwips = (inheritedTypography.fontSize ?? ctx.defaultSizeHalfPoints) * 14;
     const mediaTwips = ctx.flexBlockContent ? maxInlineMediaHeightTwips(pendingInline) : 0;
+    const superSubLineTwips = atLeastLineTwipsForSuperSubInline(
+      pendingInline,
+      ctx.defaultSizeHalfPoints,
+      ctx.styleResolver,
+    );
     // EXACT line height crops an inline image: the image sits a full image-height
     // above the baseline, which overflows an EXACT box of that same height, so
     // LibreOffice clips its top. Use EXACT only for pure-text flex card lines; when
@@ -598,9 +604,11 @@ function emitFlowBlocks(
           flexContent: ctx.flexBlockContent,
           ...(mediaTwips > 0
             ? { atLeastLineTwips: Math.max(textLineTwips, mediaTwips) }
-            : inheritedTypography.fontSize
-              ? { atLeastLineTwips: inheritedTypography.fontSize * 14 }
-              : {}),
+            : superSubLineTwips
+              ? { atLeastLineTwips: Math.max(textLineTwips, superSubLineTwips) }
+              : inheritedTypography.fontSize
+                ? { atLeastLineTwips: inheritedTypography.fontSize * 14 }
+                : {}),
         },
         containerElement,
       ),

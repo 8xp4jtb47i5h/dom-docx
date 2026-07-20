@@ -23,6 +23,12 @@ export const PRINTABLE_CONTENT_WIDTH_TWIPS = 9360;
 /** Validator body font is 14px → 10.5pt → 21 half-points. */
 export const BODY_FONT_HALF_POINTS = 21;
 
+/** Chromium UA `<sup>`/`<sub>` font-size (~83.33% of parent at 14px body). */
+export const SUPER_SUB_SCRIPT_SIZE_RATIO = 5 / 6;
+
+/** CSS `vertical-align: super/sub` raise as a fraction of the run font size (px). */
+export const SUPER_SUB_SCRIPT_RAISE_EM = 0.35;
+
 /** Chromium default unvisited link color (`:link` in HTML harness). */
 export const HYPERLINK_COLOR = "0000EE";
 
@@ -51,6 +57,9 @@ export const LIST_HANGING_TWIPS = 300;
 
 /** HTML harness line box height in px (matches line-height: 1.4 on 14px font). */
 export const BODY_LINE_BOX_PX = 19.6;
+
+/** Browser paragraph line-box height ÷ CSS line box when both super and sub appear on one line. */
+export const SUPER_SUB_MIXED_LINE_BOX_RATIO = 25.78125 / BODY_LINE_BOX_PX;
 
 /** EXACT `w:spacing/@w:line` in twips — CSS line box, not Word AUTO multiplier. */
 export const BODY_LINE_EXACT_TWIPS = Math.round(BODY_LINE_BOX_PX * 15);

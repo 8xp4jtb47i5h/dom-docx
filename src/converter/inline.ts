@@ -7,7 +7,13 @@ import {
 } from "docx";
 import type { AnyNode, Element } from "domhandler";
 import { internalAnchorFromHref, wrapWithBookmark } from "./bookmarks.js";
-import { BODY_FONT_HALF_POINTS, HYPERLINK_COLOR } from "./constants.js";
+import {
+  BODY_FONT_HALF_POINTS,
+  HYPERLINK_COLOR,
+  SUPER_SUB_MIXED_LINE_BOX_RATIO,
+  SUPER_SUB_SCRIPT_RAISE_EM,
+  SUPER_SUB_SCRIPT_SIZE_RATIO,
+} from "./constants.js";
 import { imageRunFromElement } from "./image.js";
 import {
   cssToInlineRunTypography,
@@ -62,22 +68,43 @@ function tagTypographyFlags(tag: string): RunTypography {
   }
 }
 
+function superSubTextRunSizing(
+  style: RunTypography,
+  defaultSize: number,
+): { size: number; position?: string } {
+  const targetHalfPoints =
+    style.fontSize ?? Math.round(defaultSize * SUPER_SUB_SCRIPT_SIZE_RATIO);
+  const fontPx = targetHalfPoints / 1.5;
+  const raisePt = Math.max(2, Math.round(fontPx * SUPER_SUB_SCRIPT_RAISE_EM));
+  // LibreOffice shrinks runs again when w:vertAlign super/sub is combined with w:sz,
+  // so match browser metrics with explicit size + w:position instead of w:vertAlign.
+  return {
+    size: targetHalfPoints,
+    position: style.superScript ? `${raisePt}pt` : `-${raisePt}pt`,
+  };
+}
+
 export function typographyToTextRunOptions(
   style: RunTypography,
   defaultSize: number = BODY_FONT_HALF_POINTS,
 ): Record<string, unknown> {
   const defaultColor = style.style === "Hyperlink" ? HYPERLINK_COLOR : undefined;
   const resolvedColor = style.color ?? defaultColor;
+  const superSub =
+    style.superScript || style.subScript
+      ? superSubTextRunSizing(style, defaultSize)
+      : undefined;
   const options: Record<string, unknown> = {
-    size: style.fontSize ?? defaultSize,
+    size: superSub?.size ?? style.fontSize ?? defaultSize,
   };
+  if (superSub?.position) {
+    options.position = superSub.position;
+  }
   if (resolvedColor) {
     options.color = resolvedColor;
   }
   if (style.bold !== undefined) options.bold = style.bold;
   if (style.italics !== undefined) options.italics = style.italics;
-  if (style.superScript) options.superScript = true;
-  if (style.subScript) options.subScript = true;
   if (style.allCaps !== undefined) options.allCaps = style.allCaps;
   if (style.characterSpacing) options.characterSpacing = style.characterSpacing;
   if (style.underline === true) {
@@ -299,6 +326,35 @@ export function collectInlineRunsFromNodes(
   }
 
   return runs;
+}
+
+/** AT_LEAST line twips when a paragraph mixes super and sub (browser expands the line box). */
+export function atLeastLineTwipsForSuperSubInline(
+  childNodes: AnyNode[],
+  defaultSizeHalfPoints: number = BODY_FONT_HALF_POINTS,
+  styleResolver: StyleResolver = INLINE_STYLE_RESOLVER,
+): number | undefined {
+  let hasSuper = false;
+  let hasSub = false;
+
+  const walk = (node: AnyNode, inherited: RunTypography): void => {
+    if (!isElement(node)) return;
+    const style = mergeTypography(inherited, {
+      ...tagTypographyFlags(node.name.toLowerCase()),
+      ...cssToInlineRunTypography(styleResolver.getCss(node)),
+    });
+    if (style.superScript) hasSuper = true;
+    if (style.subScript) hasSub = true;
+    for (const child of node.children ?? []) walk(child, style);
+  };
+
+  for (const node of childNodes) walk(node, {});
+
+  if (!hasSuper && !hasSub) return undefined;
+  if (!hasSuper || !hasSub) return undefined;
+
+  const baseTwips = defaultSizeHalfPoints * 14;
+  return Math.round(baseTwips * SUPER_SUB_MIXED_LINE_BOX_RATIO);
 }
 
 export function hasDirectBlockChild(
