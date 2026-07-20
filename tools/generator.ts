@@ -787,6 +787,15 @@ const EDGE_TEST_CASES: TestCase[] = [
       </ul>
     `,
   },
+  {
+    name: "vertical-align-super-sub",
+    description: "`vertical-align: super/sub` and `<sup>`/`<sub>` → OOXML superscript/subscript runs",
+    html: `
+      <p>Area of a circle: A = πr<span style="vertical-align:super;font-size:10px">2</span></p>
+      <p>Water molecule: H<span style="vertical-align:sub;font-size:10px">2</span>O</p>
+      <p>HTML tags: x<sup>2</sup> and H<sub>2</sub>O in running text.</p>
+    `,
+  },
 ];
 
 export function generateTestCases(): TestCase[] {

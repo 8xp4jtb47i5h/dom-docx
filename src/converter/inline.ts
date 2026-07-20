@@ -47,6 +47,10 @@ function tagTypographyFlags(tag: string): RunTypography {
       return { italics: true };
     case "u":
       return { underline: true };
+    case "sup":
+      return { superScript: true };
+    case "sub":
+      return { subScript: true };
     case "code":
       // Font size inherits from the surrounding text (matches browsers).
       // Consolas over Courier New: full-weight like the browser's monospace.
