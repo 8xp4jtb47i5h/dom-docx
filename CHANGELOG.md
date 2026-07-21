@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.1.16
+
+### Added
+
+- **CSS cascade regression case `stylesheet-hero-banner`.** Minimal dark hero banner repro (descendant `h1` color + kicker `text-transform: uppercase`) with OOXML structural checks — catches computed-path gaps that visual scoring alone can miss. Run via `npm run score:css-cascade`.
+
+### Fixed
+
+- **Computed path: stylesheet `text-transform: uppercase` now emits `w:caps`.** `getComputedStyle` snapshots now include `textTransform`, so class rules like `.hero-kicker { text-transform: uppercase }` render as all-caps in Word instead of preserving source casing (`Product launch` → `PRODUCT LAUNCH`). Inline `style="text-transform:…"` was already handled. CSS cascade case: `stylesheet-hero-banner`.
+
+- **Computed path: light text on a dark ancestor block is no longer dropped.** Document-canvas remapping stripped near-white foreground when the element itself had no dark `backgroundColor` — fine for dark-mode browser tabs, but wrong for hero banners where the fill lives on a parent (e.g. `.hero { background: #1a1a2e }` with `.hero h1 { color: #fff }`). White headings inside dark containers now keep their color instead of falling back to the default Heading1 blue. CSS cascade case: `stylesheet-hero-banner`; showcase: `product-launch-brief`.
+
 ## 0.1.15
 
 ### Added

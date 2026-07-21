@@ -29,6 +29,7 @@
     "fontSize",
     "fontWeight",
     "fontStyle",
+    "textTransform",
     "marginTop",
     "marginRight",
     "marginBottom",

@@ -10,7 +10,7 @@ import {
   type ParsedBorder,
   type ParsedCss,
 } from "./css.js";
-import { remapComputedColorsForDocumentCanvas } from "./document-canvas.js";
+import { remapComputedColorsForDocumentCanvas, isDarkBackgroundColor } from "./document-canvas.js";
 import { elementStylePath } from "./style-path.js";
 import { HEADING_FONT_HALF_POINTS, HEADING_MARGIN_EM } from "./constants.js";
 import type { ComputedStyleSnapshot } from "./computed-style-snapshot.js";
@@ -60,6 +60,7 @@ export function parsedCssFromComputedRecord(raw: Record<string, string>): Parsed
   css.fontSize = parseFontSize(raw.fontSize);
   css.fontWeight = raw.fontWeight?.trim() || undefined;
   css.fontStyle = raw.fontStyle?.trim().toLowerCase() || undefined;
+  css.textTransform = raw.textTransform?.trim().toLowerCase() || undefined;
 
   css.marginTop = parseLengthPx(raw.marginTop);
   css.marginRight = parseLengthPx(raw.marginRight);
@@ -92,9 +93,7 @@ export function parsedCssFromComputedRecord(raw: Record<string, string>): Parsed
   css.writingMode = raw.writingMode?.trim().toLowerCase() || undefined;
   css.textOrientation = raw.textOrientation?.trim().toLowerCase() || undefined;
 
-  // DOCXs assume a light canvas — drop near-white text with no dark fill so Word
-  // doesn't stamp invisible light-on-white runs from a dark-mode browser tab.
-  return remapComputedColorsForDocumentCanvas(css);
+  return css;
 }
 
 export class InlineStyleResolver implements StyleResolver {
@@ -165,14 +164,26 @@ export class ComputedStyleResolver implements StyleResolver {
     return new ComputedStyleResolver(snapshots);
   }
 
+  private ancestorHasDarkBackground(path: string): boolean {
+    const parts = path.split("/");
+    for (let i = parts.length - 1; i > 0; i--) {
+      const ancestorCss = this.byPath.get(parts.slice(0, i).join("/"));
+      if (isDarkBackgroundColor(ancestorCss?.backgroundColor)) return true;
+    }
+    return false;
+  }
+
   getCss(element: Element): ParsedCss {
     const path = elementStylePath(element);
     const fromComputed = this.byPath.get(path);
     const inlineCss = INLINE_STYLE_RESOLVER.getCss(element);
     if (fromComputed !== undefined) {
       // Computed snapshots omit some long-tail CSS; inline break-* always wins.
+      const remapped = remapComputedColorsForDocumentCanvas(fromComputed, {
+        ancestorHasDarkBackground: this.ancestorHasDarkBackground(path),
+      });
       return normalizeComputedUACss(element, {
-        ...fromComputed,
+        ...remapped,
         ...(inlineCss.pageBreakBefore ? { pageBreakBefore: true } : {}),
         ...(inlineCss.pageBreakAfter ? { pageBreakAfter: true } : {}),
       });

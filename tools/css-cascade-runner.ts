@@ -13,6 +13,7 @@ import {
   DEFAULT_COMPUTED_MIN_VISUAL,
   DEFAULT_MIN_COMPUTED_ADVANTAGE,
   generateCssCascadeCases,
+  type ComputedOoxmlExpectations,
   type CssCascadeCase,
 } from "./css-cascade-cases.js";
 import {
@@ -230,13 +231,65 @@ async function findStylesheetLeaks(
   });
 }
 
+const RUN_OOXML_LOOKBACK = 400;
+
+function runPrBeforeText(documentXml: string, text: string): string {
+  const idx = documentXml.indexOf(text);
+  if (idx < 0) return "";
+  return documentXml.slice(Math.max(0, idx - RUN_OOXML_LOOKBACK), idx);
+}
+
+function checkComputedOoxml(
+  documentXml: string,
+  expectations: ComputedOoxmlExpectations | undefined,
+): string[] {
+  if (!expectations) return [];
+  const failures: string[] = [];
+
+  for (const { text, color, label } of expectations.runColorBeforeText ?? []) {
+    const runPr = runPrBeforeText(documentXml, text);
+    if (!runPr) {
+      failures.push(`OOXML missing run text ${JSON.stringify(text)}`);
+      continue;
+    }
+    const colorVal = color.replace(/^#/, "").toUpperCase();
+    if (!new RegExp(`w:color[^>]*w:val="${colorVal}"`, "i").test(runPr)) {
+      failures.push(label ?? `run ${JSON.stringify(text)} missing w:color ${colorVal}`);
+    }
+  }
+
+  for (const { text, label } of expectations.runCapsBeforeText ?? []) {
+    const runPr = runPrBeforeText(documentXml, text);
+    if (!runPr) {
+      failures.push(`OOXML missing run text ${JSON.stringify(text)}`);
+      continue;
+    }
+    if (!/<w:caps\b/.test(runPr)) {
+      failures.push(label ?? `run ${JSON.stringify(text)} missing w:caps`);
+    }
+  }
+
+  return failures;
+}
+
+async function readComputedDocumentXml(computedDocxPath: string): Promise<string | null> {
+  try {
+    const archive = unzipSync(new Uint8Array(await readFile(computedDocxPath)));
+    const entry = archive["word/document.xml"];
+    return entry ? strFromU8(entry) : null;
+  } catch {
+    return null;
+  }
+}
+
 function evaluateCase(
   testCase: CssCascadeCase,
   inline: CaseResult,
   computed: CaseResult,
   leakedColors: string[],
+  computedOoxmlFailures: string[],
 ): { passed: boolean; failures: string[]; deltaVisual: number | null } {
-  const failures: string[] = [];
+  const failures: string[] = [...computedOoxmlFailures];
   const computedMin = testCase.computedMinVisual ?? DEFAULT_COMPUTED_MIN_VISUAL;
   const minAdvantage = testCase.minComputedAdvantage ?? DEFAULT_MIN_COMPUTED_ADVANTAGE;
 
@@ -364,8 +417,22 @@ async function main(): Promise<void> {
       );
 
       const inlineDocxPath = path.join(OUTPUT_ROOT, testCase.name, "inline", "output.docx");
+      const computedDocxPath = path.join(OUTPUT_ROOT, testCase.name, "computed", "output.docx");
       const leakedColors = await findStylesheetLeaks(testCase, inlineDocxPath).catch(() => []);
-      const evaluation = evaluateCase(testCase, inline, computed, leakedColors);
+      const computedXml = testCase.computedOoxml
+        ? await readComputedDocumentXml(computedDocxPath)
+        : null;
+      const computedOoxmlFailures =
+        computedXml === null && testCase.computedOoxml
+          ? ["could not read computed document.xml for OOXML checks"]
+          : checkComputedOoxml(computedXml ?? "", testCase.computedOoxml);
+      const evaluation = evaluateCase(
+        testCase,
+        inline,
+        computed,
+        leakedColors,
+        computedOoxmlFailures,
+      );
       caseResults.push({
         case: testCase,
         inline,

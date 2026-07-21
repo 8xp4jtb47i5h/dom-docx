@@ -51,6 +51,7 @@ export function snapshotComputedStylesFromDocument(
     "fontSize",
     "fontWeight",
     "fontStyle",
+    "textTransform",
     "marginTop",
     "marginRight",
     "marginBottom",

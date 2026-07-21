@@ -98,10 +98,20 @@ async function main(): Promise<void> {
   });
   check("remap drops white text on transparent bg", dropped.color === undefined);
 
-  const droppedRgb = parsedCssFromComputedRecord(
-    emptySnapshotStyles({ color: "rgb(255, 255, 255)", backgroundColor: "rgba(0, 0, 0, 0)" }),
+  const droppedRgb = remapComputedColorsForDocumentCanvas(
+    parsedCssFromComputedRecord(
+      emptySnapshotStyles({ color: "rgb(255, 255, 255)", backgroundColor: "rgba(0, 0, 0, 0)" }),
+    ),
   );
   check("parsedCss drops white text on transparent bg", droppedRgb.color === undefined);
+
+  const keptOnAncestor = remapComputedColorsForDocumentCanvas(
+    parsedCssFromComputedRecord(
+      emptySnapshotStyles({ color: "rgb(255, 255, 255)", backgroundColor: "rgba(0, 0, 0, 0)" }),
+    ),
+    { ancestorHasDarkBackground: true },
+  );
+  check("remap keeps white text when ancestor has dark fill", keptOnAncestor.color === "ffffff");
 
   const kept = remapComputedColorsForDocumentCanvas({
     color: "ffffff",

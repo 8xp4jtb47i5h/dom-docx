@@ -1,5 +1,13 @@
 import type { TestCase } from "./generator.js";
 
+/** OOXML run-level checks on computed `output.docx` (deterministic; visual alone can miss color/caps). */
+export interface ComputedOoxmlExpectations {
+  /** Run text must be preceded (within ~400 chars) by `w:color` with this 6-char RRGGBB val. */
+  runColorBeforeText?: Array<{ text: string; color: string; label?: string }>;
+  /** Run text must be preceded by `w:caps` (CSS `text-transform: uppercase`). */
+  runCapsBeforeText?: Array<{ text: string; label?: string }>;
+}
+
 /** Stylesheet / class / selector cases — inline resolver ignores `<style>` and classes. */
 export interface CssCascadeCase extends TestCase {
   /** Why this case exists in the cascade suite. */
@@ -8,6 +16,8 @@ export interface CssCascadeCase extends TestCase {
   computedMinVisual?: number;
   /** Computed must beat inline by at least this many pp (default 5). Use 0 to skip. */
   minComputedAdvantage?: number;
+  /** Structural OOXML assertions on the computed path (see css-cascade-runner). */
+  computedOoxml?: ComputedOoxmlExpectations;
 }
 
 const CSS_CASCADE_CASES: CssCascadeCase[] = [
@@ -210,6 +220,55 @@ const CSS_CASCADE_CASES: CssCascadeCase[] = [
     `,
     computedMinVisual: 80,
     minComputedAdvantage: 5,
+  },
+  {
+    name: "stylesheet-hero-banner",
+    notes:
+      "Dark hero block with descendant h1 color and kicker text-transform — product-launch-brief repro (white h1 → default Heading1 blue; kicker not w:caps).",
+    html: `
+      <style>
+        .hero {
+          background: #1a1a2e;
+          color: #fff;
+          padding: 24px 28px;
+          margin-bottom: 18px;
+        }
+        .hero-kicker {
+          margin: 0;
+          font-size: 11px;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          color: #a8dadc;
+        }
+        .hero h1 {
+          margin: 10px 0 6px;
+          color: #fff;
+          font-size: 32px;
+          font-weight: bold;
+        }
+      </style>
+      <div class="hero">
+        <p class="hero-kicker">Product launch</p>
+        <h1>Atlas CRM 3.0</h1>
+      </div>
+    `,
+    computedMinVisual: 90,
+    minComputedAdvantage: 40,
+    computedOoxml: {
+      runColorBeforeText: [
+        {
+          text: "Atlas CRM 3.0",
+          color: "FFFFFF",
+          label: "hero h1 keeps white foreground on dark banner (not default Heading1 blue)",
+        },
+      ],
+      runCapsBeforeText: [
+        {
+          text: "Product launch",
+          label: "kicker gets w:caps from stylesheet text-transform:uppercase",
+        },
+      ],
+    },
   },
 ];
 

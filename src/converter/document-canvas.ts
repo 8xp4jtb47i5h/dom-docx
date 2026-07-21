@@ -23,14 +23,28 @@ const LIGHT_FG_LUMA = 0.55;
 /** Backgrounds below this luminance count as a dark fill that may host light text. */
 const DARK_BG_LUMA = 0.35;
 
+/** Whether a parsed 6-char RRGGBB background is dark enough to host light text. */
+export function isDarkBackgroundColor(hex: string | undefined): boolean {
+  return hex !== undefined && relativeLuminance(hex) < DARK_BG_LUMA;
+}
+
+export interface DocumentCanvasRemapOptions {
+  /** True when any ancestor element paints a dark block background (e.g. `.hero`). */
+  ancestorHasDarkBackground?: boolean;
+}
+
 /**
  * Drop near-white text colors when there is no dark block background — Word's page
- * is white, so those colors would vanish. Light text on a dark shaded block is kept.
+ * is white, so those colors would vanish. Light text on a dark shaded block (self or
+ * ancestor) is kept.
  */
-export function remapComputedColorsForDocumentCanvas(css: ParsedCss): ParsedCss {
+export function remapComputedColorsForDocumentCanvas(
+  css: ParsedCss,
+  options: DocumentCanvasRemapOptions = {},
+): ParsedCss {
   if (!css.color) return css;
   if (relativeLuminance(css.color) < LIGHT_FG_LUMA) return css;
-  if (css.backgroundColor && relativeLuminance(css.backgroundColor) < DARK_BG_LUMA) {
+  if (isDarkBackgroundColor(css.backgroundColor) || options.ancestorHasDarkBackground) {
     return css;
   }
   return { ...css, color: undefined };
