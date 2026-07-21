@@ -161,6 +161,15 @@ Scoring methodology: [docs/SCORING.md](./docs/SCORING.md). HTML authoring guide:
 
 CI (`.github/workflows/ci.yml`) runs on every push/PR: typecheck, build, browser bundle, and `guard:ci` (the seven CI-safe guards) — no Playwright or LibreOffice.
 
+Before a release commit or tag, run the full local gauntlet:
+
+```bash
+npm run setup            # once per machine: playwright install chromium (also needs LibreOffice on PATH)
+npm run verify:release   # typecheck + build:all + guard:ci + the Playwright/LibreOffice guards + score:suite:strict
+```
+
+`verify:release` (`scripts/verify-release.mjs`) is a maintainer-local superset of `guard:ci`: it adds the checks CI physically can't run (`guard:computed-parity`, `guard:browser-parity`, `guard:page-break`) and the zero-tolerance `score:suite:strict`. It prints, up front, exactly what it runs and what it deliberately leaves out — `docs:sync`, `score:benchmark`, `score:style-source`/`score:css-cascade`, `score:calibration`, and the `research:*` metric-validation tools — since those are situational, not release gates. It's not wired into CI on purpose (needs Chromium + LibreOffice).
+
 Publishing uses **npm Trusted Publishing (OIDC)** — there is no `NPM_TOKEN` secret. The publish workflow (`.github/workflows/publish.yml`) runs when a semver tag matching `v*.*.*` is pushed to GitHub. It verifies the tag matches `"version"` in `package.json`, re-runs the same CI checks as above, then runs `npm publish --provenance --access public` (`prepack` builds the library and browser bundle).
 
 ### Typical release flow
