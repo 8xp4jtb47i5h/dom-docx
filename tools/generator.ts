@@ -135,6 +135,10 @@ const STANDARD_TEST_CASES: TestCase[] = [
         <span style="text-transform:uppercase">Caps bookends <span style="text-transform:none">Mixed Case</span> end.</span><br>
         <u>Underline bookends <span style="text-decoration:none">plain line</span> end.</u>
       </p>
+      <p>
+        <span style="background:#cfc">Left</span><span> </span><span style="background:#ccf">Right</span>
+        — lone space in a whitespace-only <code>&lt;span&gt;</code> between siblings.
+      </p>
       <table border="1" cellpadding="4" style="border-collapse:collapse;width:100%">
         <tr>
           <td><strong>Bold <span style="font-weight:normal">plain</span> bold</strong></td>
