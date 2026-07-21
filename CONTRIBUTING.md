@@ -107,6 +107,8 @@ Each writes a result to `output/guards/<id>.json` (via `tools/guard-result.ts`, 
 - **`guard:image-spacing`** — image paragraphs keep a floor of before/after spacing so figures don’t smash into the next heading or body when web margins were zeroed (flex/grid gap layouts). Skipped inside flex cards. CI — no Playwright/LibreOffice.
 
 ```bash
+npm run guard:ci                 # all CI-safe guards below, in one run (what CI/publish invoke)
+
 npm run guard:inline             # CI
 npm run guard:config             # CI
 npm run guard:toc-slot           # CI
@@ -118,6 +120,8 @@ npm run guard:page-break         # structural page breaks (needs LibreOffice)
 npm run guard:computed-parity    # maintainer-only, needs Playwright
 npm run guard:browser-parity     # maintainer-only, needs Playwright + a built bundle
 ```
+
+`guard:ci` (`scripts/guard-ci.mjs`) is a thin wrapper that runs the seven CI-safe guards; the CI-safe list lives only in that file's `GUARDS` array. Unlike a fail-fast `&&` chain it runs every guard even after one fails and prints a summary, so a broken build surfaces all failures at once. The individual `guard:*` scripts stay runnable on their own for local iteration.
 
 ### 4. Research tools — validate the metric itself, not the converter
 
@@ -155,7 +159,7 @@ Scoring methodology: [docs/SCORING.md](./docs/SCORING.md). HTML authoring guide:
 
 ## Release to npm
 
-CI (`.github/workflows/ci.yml`) runs on every push/PR: typecheck, build, browser bundle, `guard:inline`, `guard:config`, `guard:toc-slot`, `guard:internal-href`, `guard:document-canvas`, `guard:image-spacing`, and `guard:pack-smoke` — no Playwright or LibreOffice.
+CI (`.github/workflows/ci.yml`) runs on every push/PR: typecheck, build, browser bundle, and `guard:ci` (the seven CI-safe guards) — no Playwright or LibreOffice.
 
 Publishing uses **npm Trusted Publishing (OIDC)** — there is no `NPM_TOKEN` secret. The publish workflow (`.github/workflows/publish.yml`) runs when a semver tag matching `v*.*.*` is pushed to GitHub. It verifies the tag matches `"version"` in `package.json`, re-runs the same CI checks as above, then runs `npm publish --provenance --access public` (`prepack` builds the library and browser bundle).
 

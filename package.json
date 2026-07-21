@@ -69,6 +69,7 @@
     "score:css-cascade": "tsx tools/css-cascade-runner.ts",
     "score:calibration": "tsx tools/calibration-runner.ts",
     "score:pin": "tsx tools/score-diff.ts --pin",
+    "guard:ci": "node scripts/guard-ci.mjs",
     "guard:inline": "tsx tools/inline-path-guard.ts",
     "guard:config": "tsx tools/config-options-test.ts",
     "guard:toc-slot": "tsx tools/toc-slot-test.ts",
