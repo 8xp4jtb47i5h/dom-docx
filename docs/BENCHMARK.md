@@ -15,15 +15,15 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 
 ---
 
-## Suite summary (48 cases)
+## Suite summary (49 cases)
 
 | Metric | html-to-docx | @turbodocx/html-to-docx | dom-docx |
 |--------|---:|---:|---:|
-| XML schema pass | 0 / 48 | 0 / 48 | **48 / 48** |
-| Avg **visual (layout-based)** | 64.27% | 65.01% | **96.03%** |
-| Avg editability | 100.00 | 100.00 | 99.38 |
-| Avg engine score | 81.63 | 82.03 | **95.02** |
-| Avg compile | 14.6 ms | 16.4 ms | 41.7 ms |
+| XML schema pass | 0 / 49 | 0 / 49 | **49 / 49** |
+| Avg **visual (layout-based)** | 64.27% | 65.01% | **96.59%** |
+| Avg editability | 100.00 | 100.00 | 99.39 |
+| Avg engine score | 81.63 | 82.03 | **95.03** |
+| Avg compile | 14.6 ms | 16.4 ms | 43.4 ms |
 
 Δ vs dom-docx (library − dom-docx):
 
@@ -32,8 +32,8 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 | html-to-docx | **-31.76** | -13.21 |
 | @turbodocx/html-to-docx | **-31.02** | -12.81 |
 
-**dom-docx wins 45 / 48 cases** against html-to-docx (higher layout-based visual score).
-**dom-docx wins 43 / 48 cases** against @turbodocx/html-to-docx (higher layout-based visual score).
+**dom-docx wins 45 / 49 cases** against html-to-docx (higher layout-based visual score).
+**dom-docx wins 43 / 49 cases** against @turbodocx/html-to-docx (higher layout-based visual score).
 
 ---
 
@@ -147,7 +147,7 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 
 | Library | `simple-unordered-list` | `simple-ordered-list` | `ordered-list-rich-inline` | `paragraph-and-list` | `nested-blockquotes-lists` | `unicode-emoji-content` | `ordered-list-lower-alpha` | `ordered-list-upper-roman` | `unordered-list-square` |
 |---------|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| dom-docx | **97.27%** | **97.23%** | **93.75%** | **97.01%** | **91.48%** | **95.05%** | **97.30%** | **97.12%** | **96.89%** |
+| dom-docx | **97.27%** | **97.23%** | **97.91%** | **97.01%** | **91.48%** | **96.44%** | **97.30%** | **97.12%** | **96.89%** |
 | html-to-docx | 77.16% | 95.28% | 90.66% | 84.12% | 12.11% | 49.01% | 94.31% | 93.44% | 86.71% |
 | @turbodocx/html-to-docx | 70.02% | 93.28% | 93.97% | 72.59% | 11.51% | 77.67% | 69.97% | 69.97% | 69.17% |
 
@@ -174,8 +174,8 @@ Cases: `tools/css-cascade-cases.ts`. Regenerate: `npm run score:css-cascade`.
 
 | Metric | inline | computed | Δ |
 |--------|-------:|---------:|--:|
-| Avg adjusted visual | 63.50% | 96.57% | **+33.06** |
-| Cases passed | — | 10 / 10 | — |
+| Avg adjusted visual | 63.24% | 96.67% | **+33.43** |
+| Cases passed | — | 10 / 11 | — |
 
 Regenerate: `npm run score:css-cascade`.
 <!-- SECTION:css-cascade:END -->
@@ -187,12 +187,12 @@ Regenerate: `npm run score:css-cascade`.
 <!-- SECTION:guard-status:START -->
 | Guard | Status | Result | Command |
 |-------|:------:|--------|---------|
-| Browser bundle parity | ✅ | 36/36 equivalent to Node computed-native | `npm run guard:browser-parity` |
-| Computed parity (oracle vs native) | ✅ | 36/36 byte-identical | `npm run guard:computed-parity` |
+| Browser bundle parity | ❌ | 2/49 equivalent to Node computed-native | `npm run guard:browser-parity` |
+| Computed parity (oracle vs native) | ✅ | 49/49 byte-identical | `npm run guard:computed-parity` |
 | Config options | ✅ | 80/80 checks passed (node + browser) | `npm run guard:config` |
-| Document canvas colors | ✅ | 17/17 structural checks | `npm run guard:document-canvas` |
+| Document canvas colors | ✅ | 18/18 structural checks | `npm run guard:document-canvas` |
 | Image spacing | ✅ | 5/5 flow images floored, flex images tight | `npm run guard:image-spacing` |
-| Inline path | ✅ | 45/45 equivalent (default vs explicit inline) | `npm run guard:inline` |
+| Inline path | ✅ | 49/49 equivalent (default vs explicit inline) | `npm run guard:inline` |
 | Internal hrefs | ✅ | 16/16 structural checks | `npm run guard:internal-href` |
 | Pack smoke | ✅ | 1/1 library + CLI + browser entry install and convert | `npm run guard:pack-smoke` |
 | Page breaks | ✅ | 9/9 OOXML + multi-page PDF + computed | `npm run guard:page-break` |
