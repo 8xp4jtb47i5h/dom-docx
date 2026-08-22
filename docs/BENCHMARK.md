@@ -22,8 +22,8 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 | XML schema pass | 0 / 50 | 0 / 50 | **50 / 50** |
 | Avg **visual (layout-based)** | 64.71% | 65.62% | **96.61%** |
 | Avg editability | 100.00 | 100.00 | 99.20 |
-| Avg engine score | 82.23 | 82.47 | **95.77** |
-| Avg compile | 10.9 ms | 13.8 ms | 39.6 ms |
+| Avg engine score | 82.23 | 82.47 | **95.83** |
+| Avg compile | 10.9 ms | 13.8 ms | 37.7 ms |
 
 Δ vs dom-docx (library − dom-docx):
 
@@ -191,7 +191,9 @@ Regenerate: `npm run score:css-cascade`.
 <!-- SECTION:guard-status:START -->
 | Guard | Status | Result | Command |
 |-------|:------:|--------|---------|
+| Bookmark name length | ✅ | 28/28 structural checks | `npm run guard:bookmark-length` |
 | Browser bundle parity | ✅ | 50/50 equivalent to Node computed-native | `npm run guard:browser-parity` |
+| Header/footer images | ✅ | 9/9 chrome image checks | `npm run guard:chrome-image` |
 | Computed parity (oracle vs native) | ✅ | 50/50 byte-identical | `npm run guard:computed-parity` |
 | Config options | ✅ | 80/80 checks passed (node + browser) | `npm run guard:config` |
 | Document canvas colors | ✅ | 18/18 structural checks | `npm run guard:document-canvas` |
@@ -202,7 +204,7 @@ Regenerate: `npm run score:css-cascade`.
 | Mixed orientation | ✅ | 14/14 per-section w:pgSz + optional PDF | `npm run guard:mixed-orientation` |
 | Pack smoke | ✅ | 1/1 library + CLI + browser entry install and convert | `npm run guard:pack-smoke` |
 | Page breaks | ✅ | 9/9 OOXML + multi-page PDF + computed | `npm run guard:page-break` |
-| Table width units | ✅ | 7/7 OOXML gridCol twips | `npm run guard:table-width-units` |
+| Table width units | ✅ | 10/10 OOXML gridCol twips | `npm run guard:table-width-units` |
 | TOC slot | ✅ | 9/9 OOXML slot placement + internal links + schema | `npm run guard:toc-slot` |
 | Vertical cell text | ✅ | 10/10 w:textDirection + narrow columns | `npm run guard:vertical-text` |
 <!-- SECTION:guard-status:END -->

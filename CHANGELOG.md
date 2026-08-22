@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 1.0.0
+
+### Fixed
+
+- **Bookmark names no longer exceed the OOXML 40-character limit.** `w:bookmarkStart/@w:name` is schema-capped at 40 characters, but element ids were stamped verbatim, so real documentation pages produced schema-invalid files (a Red Hat storage page emitted 71 such errors from ids like `deleting-a-file-system-from-a-stratis-pool-by-using-the-web-console`). Long ids are now truncated to 40 with a hash suffix computed from the full id. The suffix is a pure function of the id, so `href="#long-id"` and the `id` target independently normalize to the same name and the jump still resolves, and two ids sharing a long prefix stay distinct. Length is counted in code points, so non-ASCII and astral ids are not split mid-character. Ids of 40 characters or fewer are untouched.
+
+### Added
+
+- **Bookmark-length guard.** `npm run guard:bookmark-length` covers the truncation boundary, determinism, prefix collisions, percent-encoded fragments, astral characters, and end-to-end OOXML validity plus anchor/bookmark agreement. Added to `guard:ci`.
+
 ## 0.1.22
 
 No converter changes. Packaging, discoverability and test coverage only.

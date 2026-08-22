@@ -454,6 +454,8 @@ Element attributes: table `border` / `cellpadding` / `cellspacing` / `colspan`; 
 
 Same-document links (`href="#section-id"`) become Word internal hyperlinks to a bookmark on the element with that `id` (or a legacy `<a name="…">`). External `http(s):` URLs stay relationship-based hyperlinks. Bare `href="#"` is not treated as an internal target.
 
+OOXML caps bookmark names at 40 characters, so ids longer than that (common on generated documentation pages) are shortened to a 40-character name: the leading 33 characters plus a hash of the full id. Links keep working because the `href` fragment and the `id` shorten to the same name, and two ids sharing a long prefix still get distinct bookmarks. Ids of 40 characters or fewer are used verbatim. This only affects the bookmark name Word stores internally, not any visible text.
+
 Unsupported tags are treated as generic block containers or skipped.
 
 ### Inline CSS properties
@@ -751,6 +753,7 @@ These exercise the API and write artifacts under `output/`:
 | `npm run guard:config` | `ConvertOptions` OOXML checks |
 | `npm run guard:toc-slot` | `tocHtml` slot placement + in-page links + schema |
 | `npm run guard:internal-href` | Same-document `href="#id"` → internal hyperlink + bookmark |
+| `npm run guard:bookmark-length` | Bookmark names truncated to the OOXML 40-char limit, links still resolve |
 | `npm run guard:document-canvas` | Dark-theme colors remapped for light DOCX canvas |
 | `npm run guard:image-spacing` | Image paragraph spacing floor so figures aren’t flush against neighbors |
 | `npm run score:benchmark` | OSS html-to-docx / TurboDocx comparison |

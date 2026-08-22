@@ -12,8 +12,8 @@ To generate suite metrics, run `npm run score:suite` then `npm run docs:sync`. *
 | Avg **visual (layout-based)** | 97.05% | 96.26% | **96.61%** |
 | Avg raw layout (pre-guards) | 97.05% | 96.35% | **96.66%** |
 | Avg pixel match (tripwire, unscored) | 89.69% | 93.63% | **91.90%** |
-| Avg engine score | 96.21 | 95.43 | **95.77** |
-| Avg compile | — | — | **39.6 ms** |
+| Avg engine score | 95.97 | 95.72 | **95.83** |
+| Avg compile | — | — | **37.7 ms** |
 | Identity-pair calibration (full 10) | — | — | **mean 97.21% / min 96.42%** |
 
 Tables below use the **layout-based visual** score; misaligned px is the raw pixel tripwire.

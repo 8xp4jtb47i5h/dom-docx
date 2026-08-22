@@ -20,6 +20,7 @@ const GUARDS = [
   "guard:mixed-orientation",
   "guard:toc-slot",
   "guard:internal-href",
+  "guard:bookmark-length",
   "guard:document-canvas",
   "guard:image-spacing",
   "guard:chrome-image",
