@@ -12,7 +12,7 @@ Built with a visual regression loop: render HTML in Chromium, convert to docx, r
 npm install dom-docx
 ```
 
-Requires **Node.js ≥ 20**. No browser or Playwright is needed for the default **`inline`** path.
+Requires **Node.js ≥ 20**. No browser or Playwright is needed for the default `inline` path.
 
 ### When is Playwright needed?
 
@@ -21,7 +21,7 @@ Requires **Node.js ≥ 20**. No browser or Playwright is needed for the default 
 | **Node** (`dom-docx`)            | Pure JS, no browser     | **Playwright + Chromium**                | **Playwright + Chromium** (same headless page)     |
 | **Browser** (`dom-docx/browser`) | Pure JS, no live DOM    | **Live page**: native `getComputedStyle` | **Live page**: canvas/SVG → PNG `<img>` in the tab |
 
-On Node, `playwright` is an **optional peer dependency**. `npm install dom-docx` pulls only `docx`, `cheerio` and `fflate`, nothing heavy. It is loaded lazily when you pass `styleSource: "computed"` or `rasterizeInPlace`. To use those paths, install Playwright and Chromium yourself, once:
+On Node, `playwright` is an **optional peer dependency**. `npm install dom-docx` pulls only `docx`, `cheerio` and `fflate`. It is loaded lazily when you pass `styleSource: "computed"` or `rasterizeInPlace`. To use those paths, install Playwright and Chromium yourself, once:
 
 ```bash
 npm install playwright
@@ -93,9 +93,9 @@ npm install -g dom-docx                      # optional: install globally, then 
 
 Input is a **body HTML fragment**, same as the API. `--help` for all options.
 
-## v0.1.x capability
+## v1.x capability
 
-**Supported (default `styleSource: "inline"`):**
+**Supported (default** `styleSource: "inline"`**):**
 
 - Headings, paragraphs, lists (`<ul>`/`<ol>` including `list-style-type`), tables, links, inline formatting
 - Block backgrounds, blockquotes, `<hr>`, simple flex rows (≤4 items)
@@ -104,15 +104,15 @@ Input is a **body HTML fragment**, same as the API. `--help` for all options.
 - Low-complexity inline SVG (bars + text)
 - CSS bar divs in table cells (background + height/width → native shaded bands)
 
-**Advanced (optional `styleSource: "computed"`):**
+**Advanced (optional** `styleSource: "computed"`**):**
 
 - Resolves `<style>` blocks and class/`#id` selectors via `getComputedStyle`
-- **Node:** requires **`playwright`** (optional peer dependency, installed separately) + Chromium. The library launches headless Chromium to render the fragment
+- **Node:** requires `playwright` (optional peer dependency, installed separately) + Chromium. The library launches headless Chromium to render the fragment
 - **Browser bundle:** uses the **live DOM** in the user's tab. No Playwright, no extra install
 - **SPA fragment export:** pass `root` (browser) or `rootSelector` (Node + live `page`) when converting `element.innerHTML` so computed-style paths match the fragment tree
 - **Inline is the supported default** for npm installs; computed is for stylesheets/classes or when you already have a rendered page
 
-**Charts & complex SVG (optional `rasterizeInPlace`):**
+**Charts & complex SVG (optional** `rasterizeInPlace`**):**
 
 - Rasterizes `<canvas>` and complex `<svg>` (e.g. Highcharts) to PNG `<img>` before conversion
 - **Recommended for charts:** `rasterizeInPlace: { scale: 2 }` — supersamples at 2× density for sharper images in Word (default `scale: 1`; max `4`)
@@ -120,7 +120,7 @@ Input is a **body HTML fragment**, same as the API. `--help` for all options.
 - **Node:** uses the same Playwright/Chromium context as computed styles; ephemeral spawn pages mutate in place by default
 - Simple inline SVG (rect + text bar charts) still converts natively without rasterization
 
-**Not supported in v0.1.x:**
+**Not supported in v1.x:**
 
 - External stylesheets on the inline path (use computed or inline all styles)
 - Web fonts, CSS grid/float layout, forms, `<pre>` polish, `<dl>`, table `rowspan`
@@ -177,7 +177,7 @@ const docx = await convertHtmlToDocx(html, {
 
 ### Images
 
-Only **`data:`** URLs embed automatically. For `http(s):` or file paths, supply a resolver. You control fetch policy and security:
+Only `data:` URLs embed automatically. For `http(s):` or file paths, supply a resolver. You control fetch policy and security:
 
 ```typescript
 const docx = await convertHtmlToDocx(html, {
@@ -252,11 +252,11 @@ dom-docx maps a practical HTML subset to native OOXML through a three-stage pipe
 
 Quality is driven by an autonomous loop rather than one-off visual checks:
 
-- **30+ regression cases** (defined in [`tools/generator.ts`](./tools/generator.ts), run via `npm run score:suite`): human-validated **layout fidelity** (ink-projection structure comparison, 85.6% concordance with blind human quality ratings), plus guards for bad contrast, missing list markers, wrong text and imbalanced shaded blocks; raw pixel match is recorded as a regression tripwire
+- **30+ regression cases** (defined in `[tools/generator.ts](./tools/generator.ts)`, run via `npm run score:suite`): human-validated **layout fidelity** (ink-projection structure comparison, 85.6% concordance with blind human quality ratings), plus guards for bad contrast, missing list markers, wrong text and imbalanced shaded blocks; raw pixel match is recorded as a regression tripwire
 - **Engine score**: 50% visual (layout-based) + 35% editability (native structure, not 1×1 layout tables) + 15% compile speed
 - **OSS benchmark**: same harness scores [html-to-docx](https://www.npmjs.com/package/html-to-docx) and [@turbodocx/html-to-docx](https://www.npmjs.com/package/@turbodocx/html-to-docx) for ongoing comparison ([BENCHMARK.md](./docs/BENCHMARK.md))
 
-The default **`inline`** path is pure JavaScript (`docx` + `cheerio` + `fflate`) with no browser required. **Playwright is Node-only**: for `styleSource: "computed"` on the server and for the dev harness. The **`dom-docx/browser`** bundle never uses Playwright; computed styles come from the live page's `getComputedStyle`.
+The default `inline` path is pure JavaScript (`docx` + `cheerio` + `fflate`) with no browser required. **Playwright is Node-only**: for `styleSource: "computed"` on the server and for the dev harness. The `dom-docx/browser` bundle never uses Playwright; computed styles come from the live page's `getComputedStyle`.
 
 Full scoring formulas, subscores, calibration and the agent iteration workflow: [SCORING.md](./docs/SCORING.md).
 

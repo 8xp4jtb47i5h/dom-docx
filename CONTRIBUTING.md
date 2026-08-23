@@ -187,7 +187,7 @@ npm version patch   # or minor / major — bumps package.json, commits, creates 
 git push origin main --follow-tags
 ```
 
-`npm version` updates `package.json` (and `package-lock.json` if present), creates a release commit, and tags it (e.g. `v0.1.3` ↔ `"0.1.3"`). Pushing the tag triggers the workflow; the tag **must** match `package.json` or publish fails.
+`npm version` updates `package.json` (and `package-lock.json` if present), creates a release commit, and tags it (e.g. `v1.0.1` ↔ `"1.0.1"`). Pushing the tag triggers the workflow; the tag **must** match `package.json` or publish fails.
 
 To bump without auto-commit/tag (manual control):
 
@@ -195,9 +195,9 @@ To bump without auto-commit/tag (manual control):
 npm version patch --no-git-tag-version
 # edit CHANGELOG if you keep one, then:
 git add package.json package-lock.json
-git commit -m "Release 0.1.3"
-git tag v0.1.3
-git push origin main && git push origin v0.1.3
+git commit -m "Release 1.0.1"
+git tag v1.0.1
+git push origin main && git push origin v1.0.1
 ```
 
 Visual regression (`npm run score:suite`) is maintainer-local — Chromium + LibreOffice — and is not run in GitHub Actions before publish.

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 1.0.1
+
+No converter changes. Docs only.
+
+### Changed
+
+- **Capability section in `README.md` is now versioned `v1.x`.** The "Supported / Not supported" section was still headed `v0.1.x` when 1.0.0 shipped, so the npm package page described a 1.0.0 release in pre-1.0 terms. The headings now read `v1.x` rather than a specific patch, so they stay accurate across the 1.x line.
+- **Release examples in `CONTRIBUTING.md` use post-1.0 version numbers.** The tagging walkthrough still used `v0.1.3` as its placeholder.
+
 ## 1.0.0
 
 ### Fixed
