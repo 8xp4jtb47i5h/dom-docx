@@ -9,7 +9,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **`border-width` shorthand and per-side `*-width` longhands.** `parseInlineStyle` had no case for `border-width`, `border-top-width`, `border-right-width`, `border-bottom-width`, or `border-left-width`, so those declarations were silently dropped. Supports keyword widths (`thin`/`medium`/`thick`) and numeric widths, expanding the 1-, 2-, 3- and 4-value shorthand forms in CSS top/right/bottom/left order. `border-width: 0` leaves borders undefined, matching the existing "0 means no border" convention used by `parseBorderShorthand` and `computedBorderSide`.
-- **`border-width` guard.** `npm run guard:border-width` covers uniform and per-side shorthand expansion, keyword widths, longhand-only-sets-its-own-side, the zero-width convention, and the `border-color` fallback below. Added to `guard:ci`.
+- **`border-style` shorthand and per-side `*-style` longhands apply the CSS UA default width.** A browser renders `border-style: solid` (with no width declared) as a `medium` (3px) border on every side — computed styles already fold this default in, but the inline-style parser had no cascade to fall back on, so `border-style` alone (or mixed with a width on only some sides, e.g. `border-top-width: thick; border-style: solid`) produced borders on some sides and none on others. `border-style`/`border-{top,right,bottom,left}-style` now fill in a `medium` width for any side that doesn't already have one from `border`/`border-width`/a `*-width` longhand.
+- **`border-width` guard.** `npm run guard:border-width` covers uniform and per-side shorthand expansion, keyword widths, longhand-only-sets-its-own-side, the zero-width convention, the `border-color` fallback and the `border-style` default-width behavior below. Added to `guard:ci`.
 
 ### Fixed
 

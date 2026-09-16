@@ -239,10 +239,13 @@ function parseBorderShorthand(value: string): ParsedBorder | undefined {
   };
 }
 
+/** CSS keyword border widths, in px. Also the UA default (`medium`) used when
+ * `border-style` is visible but no width was declared for that side. */
+const BORDER_WIDTH_KEYWORDS_PX: Record<string, number> = { thin: 1, medium: 3, thick: 5 };
+
 function parseBorderWidth(value: string): ParsedBorder | undefined {
   const trimmed = value.trim().toLowerCase();
-  const keywordWidths: Record<string, number> = { thin: 1, medium: 3, thick: 5 };
-  const widthPx = keywordWidths[trimmed] ?? parseFloat(trimmed);
+  const widthPx = BORDER_WIDTH_KEYWORDS_PX[trimmed] ?? parseFloat(trimmed);
   return Number.isFinite(widthPx) && widthPx > 0 ? { widthPx } : undefined;
 }
 
@@ -255,6 +258,65 @@ function applyBorderWidthShorthand(value: string, result: ParsedCss): void {
   result.borderRight = right;
   result.borderBottom = bottom;
   result.borderLeft = left;
+}
+
+const VISIBLE_BORDER_STYLE_KEYWORDS = new Set([
+  "solid",
+  "dashed",
+  "dotted",
+  "double",
+  "groove",
+  "ridge",
+  "inset",
+  "outset",
+]);
+
+/** `true` = a visible style (draws a border), `false` = none/hidden, `undefined` = unrecognized. */
+function isVisibleBorderStyleKeyword(value: string): boolean | undefined {
+  const trimmed = value.trim().toLowerCase();
+  if (VISIBLE_BORDER_STYLE_KEYWORDS.has(trimmed)) return true;
+  if (trimmed === "none" || trimmed === "hidden") return false;
+  return undefined;
+}
+
+interface BorderStyleSides {
+  top?: boolean;
+  right?: boolean;
+  bottom?: boolean;
+  left?: boolean;
+}
+
+function parseBorderStyleShorthand(value: string): BorderStyleSides | undefined {
+  const parts = value.split(/\s+/).map(isVisibleBorderStyleKeyword);
+  if (parts.some((part) => part === undefined)) return undefined;
+
+  const [top, right = top, bottom = top, left = right] = parts as boolean[];
+  return { top, right, bottom, left };
+}
+
+/**
+ * `border-style: solid` (or a longhand) with no accompanying width declares a
+ * border at the CSS UA default of `medium` (3px) on that side — the browser's
+ * computed styles already fold this in, but our own inline-style parser has
+ * no cascade to fall back on, so it's applied explicitly here. A side that
+ * already got an explicit width (or the `border` shorthand covers it) is left
+ * alone; can't distinguish "not declared" from an explicit `width: 0` here,
+ * a pre-existing limitation of representing "no border" as `undefined`.
+ */
+function applyBorderStyleDefaults(sides: BorderStyleSides, result: ParsedCss): void {
+  const DEFAULT_MEDIUM_PX = BORDER_WIDTH_KEYWORDS_PX.medium!;
+  if (sides.top && result.borderTop === undefined && result.border === undefined) {
+    result.borderTop = { widthPx: DEFAULT_MEDIUM_PX };
+  }
+  if (sides.right && result.borderRight === undefined && result.border === undefined) {
+    result.borderRight = { widthPx: DEFAULT_MEDIUM_PX };
+  }
+  if (sides.bottom && result.borderBottom === undefined && result.border === undefined) {
+    result.borderBottom = { widthPx: DEFAULT_MEDIUM_PX };
+  }
+  if (sides.left && result.borderLeft === undefined && result.border === undefined) {
+    result.borderLeft = { widthPx: DEFAULT_MEDIUM_PX };
+  }
 }
 
 function applyBoxShorthand(
@@ -284,6 +346,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
 
   const result: ParsedCss = {};
   let lineHeightRaw: string | undefined;
+  let borderStyleSides: BorderStyleSides | undefined;
   for (const declaration of style.split(";")) {
     const colon = declaration.indexOf(":");
     if (colon === -1) continue;
@@ -447,6 +510,31 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
       case "border-left-width":
         result.borderLeft = parseBorderWidth(value);
         break;
+      case "border-style": {
+        const sides = parseBorderStyleShorthand(value);
+        if (sides) borderStyleSides = { ...borderStyleSides, ...sides };
+        break;
+      }
+      case "border-top-style": {
+        const visible = isVisibleBorderStyleKeyword(value);
+        if (visible !== undefined) borderStyleSides = { ...borderStyleSides, top: visible };
+        break;
+      }
+      case "border-right-style": {
+        const visible = isVisibleBorderStyleKeyword(value);
+        if (visible !== undefined) borderStyleSides = { ...borderStyleSides, right: visible };
+        break;
+      }
+      case "border-bottom-style": {
+        const visible = isVisibleBorderStyleKeyword(value);
+        if (visible !== undefined) borderStyleSides = { ...borderStyleSides, bottom: visible };
+        break;
+      }
+      case "border-left-style": {
+        const visible = isVisibleBorderStyleKeyword(value);
+        if (visible !== undefined) borderStyleSides = { ...borderStyleSides, left: visible };
+        break;
+      }
       case "break-before":
       case "page-break-before":
         if (isPageBreakCssValue(value)) result.pageBreakBefore = true;
@@ -467,6 +555,9 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
   }
   if (lineHeightRaw) {
     result.lineHeight = parseLineHeight(lineHeightRaw, result.fontSize);
+  }
+  if (borderStyleSides) {
+    applyBorderStyleDefaults(borderStyleSides, result);
   }
   return result;
 }

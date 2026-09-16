@@ -86,6 +86,51 @@ async function main(): Promise<void> {
     JSON.stringify(noOverride.borders),
   );
 
+  console.log("\nborder-width guard — border-style default width:");
+
+  const styleOnly = parseInlineStyle("border-style: solid");
+  check(
+    "border-style: solid alone defaults all four sides to medium (3px)",
+    [styleOnly.borderTop, styleOnly.borderRight, styleOnly.borderBottom, styleOnly.borderLeft].every(
+      (s) => s?.widthPx === 3,
+    ),
+    JSON.stringify(styleOnly),
+  );
+
+  const styleNone = parseInlineStyle("border-style: none");
+  check(
+    "border-style: none does not synthesize a border",
+    styleNone.borderTop === undefined && styleNone.borderLeft === undefined,
+    JSON.stringify(styleNone),
+  );
+
+  const styleWithExplicitWidth = parseInlineStyle("border-top-width: thick; border-style: solid");
+  check(
+    "an explicit width on one side is kept, medium default fills the rest",
+    styleWithExplicitWidth.borderTop?.widthPx === 5 &&
+      styleWithExplicitWidth.borderRight?.widthPx === 3 &&
+      styleWithExplicitWidth.borderBottom?.widthPx === 3 &&
+      styleWithExplicitWidth.borderLeft?.widthPx === 3,
+    JSON.stringify(styleWithExplicitWidth),
+  );
+
+  const styleLonghandOneSide = parseInlineStyle("border-left-style: dashed");
+  check(
+    "border-left-style longhand only defaults the left side",
+    styleLonghandOneSide.borderLeft?.widthPx === 3 &&
+      styleLonghandOneSide.borderTop === undefined &&
+      styleLonghandOneSide.borderRight === undefined &&
+      styleLonghandOneSide.borderBottom === undefined,
+    JSON.stringify(styleLonghandOneSide),
+  );
+
+  const styleWithShorthandBorder = parseInlineStyle("border: 1px solid #000; border-style: solid");
+  check(
+    "border-style default does not clobber a side already covered by the border shorthand",
+    styleWithShorthandBorder.borderTop === undefined && styleWithShorthandBorder.border?.widthPx === 1,
+    JSON.stringify(styleWithShorthandBorder),
+  );
+
   await writeGuardResult({
     id: "border-width",
     label: "border-width shorthand",
