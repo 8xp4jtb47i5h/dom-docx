@@ -9,7 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **`border-width` shorthand and per-side `*-width` longhands.** `parseInlineStyle` had no case for `border-width`, `border-top-width`, `border-right-width`, `border-bottom-width`, or `border-left-width`, so those declarations were silently dropped. Supports keyword widths (`thin`/`medium`/`thick`) and numeric widths, expanding the 1-, 2-, 3- and 4-value shorthand forms in CSS top/right/bottom/left order. `border-width: 0` leaves borders undefined, matching the existing "0 means no border" convention used by `parseBorderShorthand` and `computedBorderSide`.
-- **`border-width` guard.** `npm run guard:border-width` covers uniform and per-side shorthand expansion, keyword widths, longhand-only-sets-its-own-side, and the zero-width convention. Added to `guard:ci`.
+- **`border-width` guard.** `npm run guard:border-width` covers uniform and per-side shorthand expansion, keyword widths, longhand-only-sets-its-own-side, the zero-width convention, and the `border-color` fallback below. Added to `guard:ci`.
+
+### Fixed
+
+- **Standalone `border-color` was ignored on block-level borders (`<div>`, `<blockquote>`, etc.).** `border-color: <color>` declared apart from the `border`/`border-{side}` shorthand only ever reached table and cell borders; block borders always rendered black regardless of an explicit `border-color`. `borderSideToDocx` now falls back to `css.borderColor` the same way the table border builders already do, while a color embedded directly in the `border`/`border-{side}` shorthand still takes precedence.
 
 ## 1.0.1
 

@@ -634,12 +634,13 @@ export function pxPaddingToBorderSpace(paddingTwips: number | undefined): number
 function borderSideToDocx(
   side: ParsedBorder | undefined,
   paddingTwips: number | undefined,
+  borderColor: string | undefined,
 ): BlockBorderSide | undefined {
   if (!side) return undefined;
   return {
     size: Math.max(1, Math.round(side.widthPx * PX_TO_BORDER_SIZE)),
     space: pxPaddingToBorderSpace(paddingTwips),
-    color: side.color ?? "000000",
+    color: side.color ?? borderColor ?? "000000",
   };
 }
 
@@ -653,10 +654,10 @@ function buildBlockBorders(css: ParsedCss): BlockBorders | undefined {
   if (!top && !right && !bottom && !left) return undefined;
 
   const borders: BlockBorders = {
-    top: borderSideToDocx(top, css.paddingTop),
-    right: borderSideToDocx(right, css.paddingRight),
-    bottom: borderSideToDocx(bottom, css.paddingBottom),
-    left: borderSideToDocx(left, css.paddingLeft),
+    top: borderSideToDocx(top, css.paddingTop, css.borderColor),
+    right: borderSideToDocx(right, css.paddingRight, css.borderColor),
+    bottom: borderSideToDocx(bottom, css.paddingBottom, css.borderColor),
+    left: borderSideToDocx(left, css.paddingLeft, css.borderColor),
   };
 
   return Object.values(borders).some(Boolean) ? borders : undefined;

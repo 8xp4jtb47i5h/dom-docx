@@ -4,7 +4,7 @@
  * through to the `default:` case and left `borderTop`/etc. undefined
  * (no border emitted, even though the author declared one explicitly).
  */
-import { parseInlineStyle } from "../src/converter/css.js";
+import { cssToBlockLayout, parseInlineStyle } from "../src/converter/css.js";
 import { writeGuardResult } from "./guard-result.js";
 
 let failures = 0;
@@ -59,6 +59,31 @@ async function main(): Promise<void> {
       longhand.borderBottom?.widthPx === 5 &&
       longhand.borderTop === undefined,
     JSON.stringify(longhand),
+  );
+
+  console.log("\nborder-width guard — block border color fallback:");
+
+  const noColor = cssToBlockLayout(parseInlineStyle("border-width: 2px; border-color: #cc3333"));
+  check(
+    "standalone border-color applies to a block border with no per-side color",
+    noColor.borders?.top?.color === "cc3333" && noColor.borders?.left?.color === "cc3333",
+    JSON.stringify(noColor.borders),
+  );
+
+  const shorthandColorWins = cssToBlockLayout(
+    parseInlineStyle("border: 2px solid #2a6f2a; border-color: #cc3333"),
+  );
+  check(
+    "color embedded in the border shorthand still wins over border-color",
+    shorthandColorWins.borders?.top?.color === "2a6f2a",
+    JSON.stringify(shorthandColorWins.borders),
+  );
+
+  const noOverride = cssToBlockLayout(parseInlineStyle("border-width: 2px"));
+  check(
+    "no border-color declared falls back to black",
+    noOverride.borders?.top?.color === "000000",
+    JSON.stringify(noOverride.borders),
   );
 
   await writeGuardResult({
