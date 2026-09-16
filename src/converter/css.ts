@@ -239,6 +239,24 @@ function parseBorderShorthand(value: string): ParsedBorder | undefined {
   };
 }
 
+function parseBorderWidth(value: string): ParsedBorder | undefined {
+  const trimmed = value.trim().toLowerCase();
+  const keywordWidths: Record<string, number> = { thin: 1, medium: 3, thick: 5 };
+  const widthPx = keywordWidths[trimmed] ?? parseFloat(trimmed);
+  return Number.isFinite(widthPx) && widthPx > 0 ? { widthPx } : undefined;
+}
+
+function applyBorderWidthShorthand(value: string, result: ParsedCss): void {
+  const parts = value.split(/\s+/).map(parseBorderWidth);
+  if (parts.some((part) => part === undefined)) return;
+
+  const [top, right = top, bottom = top, left = right] = parts;
+  result.borderTop = top;
+  result.borderRight = right;
+  result.borderBottom = bottom;
+  result.borderLeft = left;
+}
+
 function applyBoxShorthand(
   value: string,
   result: ParsedCss,
@@ -399,20 +417,35 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
       case "border":
         result.border = parseBorderShorthand(value);
         break;
+      case "border-width":
+        applyBorderWidthShorthand(value, result);
+        break;
       case "border-color":
         result.borderColor = parseColor(value.trim().split(/\s+/)[0]);
         break;
       case "border-top":
         result.borderTop = parseBorderShorthand(value);
         break;
+      case "border-top-width":
+        result.borderTop = parseBorderWidth(value);
+        break;
       case "border-right":
         result.borderRight = parseBorderShorthand(value);
+        break;
+      case "border-right-width":
+        result.borderRight = parseBorderWidth(value);
         break;
       case "border-bottom":
         result.borderBottom = parseBorderShorthand(value);
         break;
+      case "border-bottom-width":
+        result.borderBottom = parseBorderWidth(value);
+        break;
       case "border-left":
         result.borderLeft = parseBorderShorthand(value);
+        break;
+      case "border-left-width":
+        result.borderLeft = parseBorderWidth(value);
         break;
       case "break-before":
       case "page-break-before":

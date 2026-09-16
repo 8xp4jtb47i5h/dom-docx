@@ -83,6 +83,7 @@
     "guard:page-break": "tsx tools/page-break-test.ts",
     "guard:internal-href": "tsx tools/internal-href-test.ts",
     "guard:bookmark-length": "tsx tools/bookmark-length-test.ts",
+    "guard:border-width": "tsx tools/border-width-test.ts",
     "guard:document-canvas": "tsx tools/document-canvas-test.ts",
     "guard:image-spacing": "tsx tools/image-spacing-test.ts",
     "guard:chrome-image": "tsx tools/chrome-image-test.ts",

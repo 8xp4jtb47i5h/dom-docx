@@ -21,6 +21,7 @@ const GUARDS = [
   "guard:toc-slot",
   "guard:internal-href",
   "guard:bookmark-length",
+  "guard:border-width",
   "guard:document-canvas",
   "guard:image-spacing",
   "guard:chrome-image",
