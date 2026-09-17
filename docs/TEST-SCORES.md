@@ -6,14 +6,14 @@ To generate suite metrics, run `npm run score:suite` then `npm run docs:sync`. *
 
 ## Summary
 
-| Metric | Standard (22) | Edge (28) | All (50) |
+| Metric | Standard (22) | Edge (30) | All (52) |
 |--------|---------------|-----------|----------|
-| XML schema pass | 22 / 22 | 28 / 28 | **50 / 50** |
-| Avg **visual (layout-based)** | 97.05% | 96.26% | **96.61%** |
-| Avg raw layout (pre-guards) | 97.05% | 96.35% | **96.66%** |
-| Avg pixel match (tripwire, unscored) | 89.69% | 93.63% | **91.90%** |
-| Avg engine score | 95.97 | 95.72 | **95.83** |
-| Avg compile | — | — | **37.7 ms** |
+| XML schema pass | 22 / 22 | 30 / 30 | **52 / 52** |
+| Avg **visual (layout-based)** | 97.05% | 96.36% | **96.65%** |
+| Avg raw layout (pre-guards) | 97.05% | 96.44% | **96.70%** |
+| Avg pixel match (tripwire, unscored) | 89.69% | 93.48% | **91.88%** |
+| Avg engine score | 94.89 | 95.03 | **94.97** |
+| Avg compile | — | — | **43.4 ms** |
 | Identity-pair calibration (full 10) | — | — | **mean 97.21% / min 96.42%** |
 
 Tables below use the **layout-based visual** score; misaligned px is the raw pixel tripwire.
@@ -47,7 +47,7 @@ Tables below use the **layout-based visual** score; misaligned px is the raw pix
 | `centered-paragraph` | `text-align: center` | ✓ | 96.81% | 748 |
 | `horizontal-rule` | Content separated by `<hr>` | ✓ | 94.64% | 2,480 |
 
-## Edge cases (28)
+## Edge cases (30)
 
 | Test | Description | XML | Visual | Misaligned px |
 |------|-------------|-----|--------|---------------|
@@ -63,6 +63,8 @@ Tables below use the **layout-based visual** score; misaligned px is the raw pix
 | `inline-backgrounds` | Multi-color inline highlights, bold in shaded span | ✓ | 97.77% | 2,988 |
 | `mixed-margins-paddings` | Asymmetric margin/padding, bordered box | ✓ | 95.68% | 5,443 |
 | `bordered-shaded-div-width-percent` | Single bordered/shaded div with `width:50%`, custom font-family, padding and margin | ✓ | 97.40% | 512 |
+| `border-width-shorthand` | `border-width` shorthand box plus `border-top-width` with `border-style:solid` defaulting the other sides to medium | ✓ | 97.46% | 7,874 |
+| `border-width-shorthand-edge-cases` | `border-width` shorthand edge cases: a `0` component mixed with non-zero widths, and `border-width` layered on top of a colored `border` shorthand | ✓ | 98.08% | 6,967 |
 | `flex-row-horizontal` | `display:flex; flex-direction:row` — three columns with gap and wrapping content | ✓ | 97.28% | 16,655 |
 | `flex-column-vertical` | `display:flex; flex-direction:column` — stacked rows with gap | ✓ | 98.19% | 12,759 |
 | `flex-row-images` | Flex row of bordered cards each wrapping an `<img>` (LibreOffice overflow repro; no rasterize) | ✓ | 96.75% | 16,826 |

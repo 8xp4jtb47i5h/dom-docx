@@ -15,15 +15,15 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 
 ---
 
-## Suite summary (50 cases)
+## Suite summary (52 cases)
 
 | Metric | html-to-docx | @turbodocx/html-to-docx | dom-docx |
 |--------|---:|---:|---:|
-| XML schema pass | 0 / 50 | 0 / 50 | **50 / 50** |
-| Avg **visual (layout-based)** | 64.71% | 65.62% | **96.61%** |
-| Avg editability | 100.00 | 100.00 | 99.20 |
-| Avg engine score | 82.23 | 82.47 | **95.83** |
-| Avg compile | 10.9 ms | 13.8 ms | 37.7 ms |
+| XML schema pass | 0 / 52 | 0 / 52 | **52 / 52** |
+| Avg **visual (layout-based)** | 64.71% | 65.62% | **96.65%** |
+| Avg editability | 100.00 | 100.00 | 98.46 |
+| Avg engine score | 82.23 | 82.47 | **94.97** |
+| Avg compile | 10.9 ms | 13.8 ms | 43.4 ms |
 
 Δ vs dom-docx (library − dom-docx):
 
@@ -32,8 +32,8 @@ All libraries use the **same visual harness**: human-validated layout fidelity p
 | html-to-docx | **-31.89** | -13.54 |
 | @turbodocx/html-to-docx | **-30.99** | -13.30 |
 
-**dom-docx wins 47 / 50 cases** against html-to-docx (higher layout-based visual score).
-**dom-docx wins 46 / 50 cases** against @turbodocx/html-to-docx (higher layout-based visual score).
+**dom-docx wins 47 / 52 cases** against html-to-docx (higher layout-based visual score).
+**dom-docx wins 46 / 52 cases** against @turbodocx/html-to-docx (higher layout-based visual score).
 
 ---
 
@@ -192,14 +192,15 @@ Regenerate: `npm run score:css-cascade`.
 | Guard | Status | Result | Command |
 |-------|:------:|--------|---------|
 | Bookmark name length | ✅ | 28/28 structural checks | `npm run guard:bookmark-length` |
-| Browser bundle parity | ✅ | 50/50 equivalent to Node computed-native | `npm run guard:browser-parity` |
+| border-width shorthand | ✅ | 20/20 pure-function checks | `npm run guard:border-width` |
+| Browser bundle parity | ✅ | 52/52 equivalent to Node computed-native | `npm run guard:browser-parity` |
 | Header/footer images | ✅ | 9/9 chrome image checks | `npm run guard:chrome-image` |
-| Computed parity (oracle vs native) | ✅ | 50/50 byte-identical | `npm run guard:computed-parity` |
+| Computed parity (oracle vs native) | ✅ | 52/52 byte-identical | `npm run guard:computed-parity` |
 | Config options | ✅ | 80/80 checks passed (node + browser) | `npm run guard:config` |
 | Document canvas colors | ✅ | 18/18 structural checks | `npm run guard:document-canvas` |
 | Allowlisted Word fields | ✅ | 27/27 field OOXML + warnings | `npm run guard:fields` |
 | Image spacing | ✅ | 5/5 flow images floored, flex images tight | `npm run guard:image-spacing` |
-| Inline path | ✅ | 50/50 equivalent (default vs explicit inline) | `npm run guard:inline` |
+| Inline path | ✅ | 52/52 equivalent (default vs explicit inline) | `npm run guard:inline` |
 | Internal hrefs | ✅ | 16/16 structural checks | `npm run guard:internal-href` |
 | Mixed orientation | ✅ | 14/14 per-section w:pgSz + optional PDF | `npm run guard:mixed-orientation` |
 | Pack smoke | ✅ | 1/1 library + CLI + browser entry install and convert | `npm run guard:pack-smoke` |
