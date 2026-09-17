@@ -269,7 +269,24 @@ function withBorderWidth(
   return { widthPx, color: existingSide?.color ?? fallbackSide?.color };
 }
 
-function applyBorderWidthShorthand(value: string, result: ParsedCss): void {
+/**
+ * Sides that got an explicit width declaration, tracked separately from the
+ * resulting `ParsedCss` value — `0` and "never declared" both end up as
+ * `undefined` there (the "0 means no border" convention), so this is the only
+ * way to tell them apart afterwards (see `applyBorderStyleDefaults`).
+ */
+interface ExplicitBorderWidthSides {
+  top?: boolean;
+  right?: boolean;
+  bottom?: boolean;
+  left?: boolean;
+}
+
+function applyBorderWidthShorthand(
+  value: string,
+  result: ParsedCss,
+  explicitWidthSides: ExplicitBorderWidthSides,
+): void {
   const rawParts = value.split(/\s+/).map(parseBorderWidthPx);
   if (rawParts.some((part) => part === undefined)) return;
 
@@ -278,6 +295,10 @@ function applyBorderWidthShorthand(value: string, result: ParsedCss): void {
   result.borderRight = withBorderWidth(right, result.borderRight, result.border);
   result.borderBottom = withBorderWidth(bottom, result.borderBottom, result.border);
   result.borderLeft = withBorderWidth(left, result.borderLeft, result.border);
+  explicitWidthSides.top = true;
+  explicitWidthSides.right = true;
+  explicitWidthSides.bottom = true;
+  explicitWidthSides.left = true;
 }
 
 const VISIBLE_BORDER_STYLE_KEYWORDS = new Set([
@@ -318,23 +339,37 @@ function parseBorderStyleShorthand(value: string): BorderStyleSides | undefined 
  * `border-style: solid` (or a longhand) with no accompanying width declares a
  * border at the CSS UA default of `medium` (3px) on that side — the browser's
  * computed styles already fold this in, but our own inline-style parser has
- * no cascade to fall back on, so it's applied explicitly here. A side that
- * already got an explicit width (or the `border` shorthand covers it) is left
- * alone; can't distinguish "not declared" from an explicit `width: 0` here,
- * a pre-existing limitation of representing "no border" as `undefined`.
+ * no cascade to fall back on, so it's applied explicitly here. A side already
+ * covered by the `border` shorthand, or one with an explicit width — even a
+ * `0` one, tracked via `explicitWidthSides` since `0` also resolves to
+ * `undefined` on `result` — is left alone.
  */
-function applyBorderStyleDefaults(sides: BorderStyleSides, result: ParsedCss): void {
+function applyBorderStyleDefaults(
+  sides: BorderStyleSides,
+  result: ParsedCss,
+  explicitWidthSides: ExplicitBorderWidthSides,
+): void {
   const DEFAULT_MEDIUM_PX = BORDER_WIDTH_KEYWORDS_PX.medium!;
-  if (sides.top && result.borderTop === undefined && result.border === undefined) {
+  if (sides.top && result.borderTop === undefined && result.border === undefined && !explicitWidthSides.top) {
     result.borderTop = { widthPx: DEFAULT_MEDIUM_PX };
   }
-  if (sides.right && result.borderRight === undefined && result.border === undefined) {
+  if (
+    sides.right &&
+    result.borderRight === undefined &&
+    result.border === undefined &&
+    !explicitWidthSides.right
+  ) {
     result.borderRight = { widthPx: DEFAULT_MEDIUM_PX };
   }
-  if (sides.bottom && result.borderBottom === undefined && result.border === undefined) {
+  if (
+    sides.bottom &&
+    result.borderBottom === undefined &&
+    result.border === undefined &&
+    !explicitWidthSides.bottom
+  ) {
     result.borderBottom = { widthPx: DEFAULT_MEDIUM_PX };
   }
-  if (sides.left && result.borderLeft === undefined && result.border === undefined) {
+  if (sides.left && result.borderLeft === undefined && result.border === undefined && !explicitWidthSides.left) {
     result.borderLeft = { widthPx: DEFAULT_MEDIUM_PX };
   }
 }
@@ -367,6 +402,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
   const result: ParsedCss = {};
   let lineHeightRaw: string | undefined;
   let borderStyleSides: BorderStyleSides | undefined;
+  const explicitWidthSides: ExplicitBorderWidthSides = {};
   for (const declaration of style.split(";")) {
     const colon = declaration.indexOf(":");
     if (colon === -1) continue;
@@ -501,7 +537,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
         result.border = parseBorderShorthand(value);
         break;
       case "border-width":
-        applyBorderWidthShorthand(value, result);
+        applyBorderWidthShorthand(value, result, explicitWidthSides);
         break;
       case "border-color":
         result.borderColor = parseColor(value.trim().split(/\s+/)[0]);
@@ -513,6 +549,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
         const widthPx = parseBorderWidthPx(value);
         if (widthPx !== undefined) {
           result.borderTop = withBorderWidth(widthPx, result.borderTop, result.border);
+          explicitWidthSides.top = true;
         }
         break;
       }
@@ -523,6 +560,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
         const widthPx = parseBorderWidthPx(value);
         if (widthPx !== undefined) {
           result.borderRight = withBorderWidth(widthPx, result.borderRight, result.border);
+          explicitWidthSides.right = true;
         }
         break;
       }
@@ -533,6 +571,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
         const widthPx = parseBorderWidthPx(value);
         if (widthPx !== undefined) {
           result.borderBottom = withBorderWidth(widthPx, result.borderBottom, result.border);
+          explicitWidthSides.bottom = true;
         }
         break;
       }
@@ -543,6 +582,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
         const widthPx = parseBorderWidthPx(value);
         if (widthPx !== undefined) {
           result.borderLeft = withBorderWidth(widthPx, result.borderLeft, result.border);
+          explicitWidthSides.left = true;
         }
         break;
       }
@@ -593,7 +633,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
     result.lineHeight = parseLineHeight(lineHeightRaw, result.fontSize);
   }
   if (borderStyleSides) {
-    applyBorderStyleDefaults(borderStyleSides, result);
+    applyBorderStyleDefaults(borderStyleSides, result, explicitWidthSides);
   }
   return result;
 }

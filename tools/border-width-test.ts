@@ -131,6 +131,16 @@ async function main(): Promise<void> {
     JSON.stringify(styleWithShorthandBorder),
   );
 
+  const explicitZeroWithStyle = parseInlineStyle("border-width: 3px 0px; border-style: solid");
+  check(
+    "an explicit 0 width is not backfilled by the border-style medium default",
+    explicitZeroWithStyle.borderTop?.widthPx === 3 &&
+      explicitZeroWithStyle.borderBottom?.widthPx === 3 &&
+      explicitZeroWithStyle.borderRight === undefined &&
+      explicitZeroWithStyle.borderLeft === undefined,
+    JSON.stringify(explicitZeroWithStyle),
+  );
+
   console.log("\nborder-width guard — shorthand edge cases:");
 
   // A 0 component in the multi-value shorthand must not bail out the whole
