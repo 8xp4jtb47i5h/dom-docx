@@ -243,21 +243,41 @@ function parseBorderShorthand(value: string): ParsedBorder | undefined {
  * `border-style` is visible but no width was declared for that side. */
 const BORDER_WIDTH_KEYWORDS_PX: Record<string, number> = { thin: 1, medium: 3, thick: 5 };
 
-function parseBorderWidth(value: string): ParsedBorder | undefined {
+/** Raw width in px for one `border-width` token, or `undefined` for a
+ * genuinely unparseable one. `0` is a valid width here — it's handled by
+ * `withBorderWidth` below, not treated as "invalid" the way a bad keyword is. */
+function parseBorderWidthPx(value: string): number | undefined {
   const trimmed = value.trim().toLowerCase();
   const widthPx = BORDER_WIDTH_KEYWORDS_PX[trimmed] ?? parseFloat(trimmed);
-  return Number.isFinite(widthPx) && widthPx > 0 ? { widthPx } : undefined;
+  return Number.isFinite(widthPx) && widthPx >= 0 ? widthPx : undefined;
+}
+
+/**
+ * Applies a width-only update to one side. `border-width`/`border-*-width`
+ * only ever touch the width component in real CSS, so any color already
+ * declared on that side (via `border-top`, or inherited from the generic
+ * `border` shorthand) is preserved rather than silently dropped. `widthPx <=
+ * 0` means no border on that side, matching the "undefined = no border"
+ * convention used everywhere else.
+ */
+function withBorderWidth(
+  widthPx: number,
+  existingSide: ParsedBorder | undefined,
+  fallbackSide: ParsedBorder | undefined,
+): ParsedBorder | undefined {
+  if (widthPx <= 0) return undefined;
+  return { widthPx, color: existingSide?.color ?? fallbackSide?.color };
 }
 
 function applyBorderWidthShorthand(value: string, result: ParsedCss): void {
-  const parts = value.split(/\s+/).map(parseBorderWidth);
-  if (parts.some((part) => part === undefined)) return;
+  const rawParts = value.split(/\s+/).map(parseBorderWidthPx);
+  if (rawParts.some((part) => part === undefined)) return;
 
-  const [top, right = top, bottom = top, left = right] = parts;
-  result.borderTop = top;
-  result.borderRight = right;
-  result.borderBottom = bottom;
-  result.borderLeft = left;
+  const [top, right = top, bottom = top, left = right] = rawParts as number[];
+  result.borderTop = withBorderWidth(top, result.borderTop, result.border);
+  result.borderRight = withBorderWidth(right, result.borderRight, result.border);
+  result.borderBottom = withBorderWidth(bottom, result.borderBottom, result.border);
+  result.borderLeft = withBorderWidth(left, result.borderLeft, result.border);
 }
 
 const VISIBLE_BORDER_STYLE_KEYWORDS = new Set([
@@ -489,27 +509,43 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
       case "border-top":
         result.borderTop = parseBorderShorthand(value);
         break;
-      case "border-top-width":
-        result.borderTop = parseBorderWidth(value);
+      case "border-top-width": {
+        const widthPx = parseBorderWidthPx(value);
+        if (widthPx !== undefined) {
+          result.borderTop = withBorderWidth(widthPx, result.borderTop, result.border);
+        }
         break;
+      }
       case "border-right":
         result.borderRight = parseBorderShorthand(value);
         break;
-      case "border-right-width":
-        result.borderRight = parseBorderWidth(value);
+      case "border-right-width": {
+        const widthPx = parseBorderWidthPx(value);
+        if (widthPx !== undefined) {
+          result.borderRight = withBorderWidth(widthPx, result.borderRight, result.border);
+        }
         break;
+      }
       case "border-bottom":
         result.borderBottom = parseBorderShorthand(value);
         break;
-      case "border-bottom-width":
-        result.borderBottom = parseBorderWidth(value);
+      case "border-bottom-width": {
+        const widthPx = parseBorderWidthPx(value);
+        if (widthPx !== undefined) {
+          result.borderBottom = withBorderWidth(widthPx, result.borderBottom, result.border);
+        }
         break;
+      }
       case "border-left":
         result.borderLeft = parseBorderShorthand(value);
         break;
-      case "border-left-width":
-        result.borderLeft = parseBorderWidth(value);
+      case "border-left-width": {
+        const widthPx = parseBorderWidthPx(value);
+        if (widthPx !== undefined) {
+          result.borderLeft = withBorderWidth(widthPx, result.borderLeft, result.border);
+        }
         break;
+      }
       case "border-style": {
         const sides = parseBorderStyleShorthand(value);
         if (sides) borderStyleSides = { ...borderStyleSides, ...sides };

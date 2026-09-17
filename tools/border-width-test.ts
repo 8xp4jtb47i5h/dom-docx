@@ -131,6 +131,43 @@ async function main(): Promise<void> {
     JSON.stringify(styleWithShorthandBorder),
   );
 
+  console.log("\nborder-width guard — shorthand edge cases:");
+
+  // A 0 component in the multi-value shorthand must not bail out the whole
+  // declaration — only that side should end up with no border.
+  const zeroInShorthand = parseInlineStyle("border-width: 1px 0px");
+  check(
+    "border-width: 1px 0px keeps the 1px top/bottom sides",
+    zeroInShorthand.borderTop?.widthPx === 1 && zeroInShorthand.borderBottom?.widthPx === 1,
+    JSON.stringify(zeroInShorthand),
+  );
+  check(
+    "border-width: 1px 0px leaves the 0px left/right sides undefined (no border)",
+    zeroInShorthand.borderRight === undefined && zeroInShorthand.borderLeft === undefined,
+    JSON.stringify(zeroInShorthand),
+  );
+
+  // border-width/border-*-width only touch the width component in real CSS —
+  // a color already declared via `border`/`border-top`/etc on that side must
+  // survive a later width-only update, in either declaration order.
+  const colorThenWidth = cssToBlockLayout(
+    parseInlineStyle("border: 2px solid #ff0000; border-width: 6px;"),
+  );
+  check(
+    "border-width after a colored border shorthand keeps that color",
+    colorThenWidth.borders?.top?.color === "ff0000",
+    JSON.stringify(colorThenWidth.borders),
+  );
+
+  const widthThenColor = cssToBlockLayout(
+    parseInlineStyle("border-top-width: 6px; border-top: 2px solid #ff0000;"),
+  );
+  check(
+    "a later colored border-top still applies its own color",
+    widthThenColor.borders?.top?.color === "ff0000",
+    JSON.stringify(widthThenColor.borders),
+  );
+
   await writeGuardResult({
     id: "border-width",
     label: "border-width shorthand",

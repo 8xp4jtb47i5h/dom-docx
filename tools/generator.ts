@@ -535,6 +535,32 @@ const EDGE_TEST_CASES: TestCase[] = [
     html: `<div style="border: 1px solid #c8ccd0; background: #f1f3f5; padding: 5px 8px; margin-bottom: 6px; font-size: 10.5pt; font-family: Noto Sans, sans-serif; color: #111; width:50%">div styling test</div>`,
   },
   {
+    name: "border-width-shorthand",
+    description:
+      "`border-width` shorthand box plus `border-top-width` with `border-style:solid` defaulting the other sides to medium",
+    html: `
+      <div style="border-width: 2px; border-style: solid; border-color: #cc3333; padding: 12px; margin-bottom: 12px">
+        Uniform border-width: 2px box, border-color set separately.
+      </div>
+      <div style="border-top-width: 14px; border-style: solid; border-color: #2a6f2a; padding: 10px">
+        border-top-width: 14px only, border-style: solid fills in a medium-width (3px) border on the other three sides.
+      </div>
+    `,
+  },
+  {
+    name: "border-width-shorthand-edge-cases",
+    description:
+      "`border-width` shorthand edge cases: a `0` component mixed with non-zero widths, and `border-width` layered on top of a colored `border` shorthand",
+    html: `
+      <div style="border-width: 3px 0px; border-style: solid; border-color: #1a6fb0; padding: 10px; margin-bottom: 12px">
+        border-width: 3px 0px — top/bottom only, no left/right.
+      </div>
+      <div style="border: 3px solid #1a6fb0; border-width: 8px; padding: 10px">
+        border: 3px solid blue, then border-width: 8px — stays blue at 8px.
+      </div>
+    `,
+  },
+  {
     name: "flex-row-horizontal",
     description: "`display:flex; flex-direction:row` — three columns with gap and wrapping content",
     html: `

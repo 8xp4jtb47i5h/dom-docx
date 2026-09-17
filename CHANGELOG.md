@@ -15,6 +15,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **Standalone `border-color` was ignored on block-level borders (`<div>`, `<blockquote>`, etc.).** `border-color: <color>` declared apart from the `border`/`border-{side}` shorthand only ever reached table and cell borders; block borders always rendered black regardless of an explicit `border-color`. `borderSideToDocx` now falls back to `css.borderColor` the same way the table border builders already do, while a color embedded directly in the `border`/`border-{side}` shorthand still takes precedence.
+- **`border-width: 1px 0px` (or any multi-value shorthand with a `0` component) dropped the entire declaration.** `parseBorderWidth` returned `undefined` for a `0` token (its "no border" convention), so `applyBorderWidthShorthand`'s "bail if any part is undefined" check treated a legitimate `0` side the same as an invalid one — the whole declaration, including the non-zero sides, was silently discarded. Width parsing and "does this produce a border" are now separate steps, so a `0` component only clears that one side.
+- **`border-width`/`border-*-width` silently dropped a color already declared via `border`/`border-top`/etc.** Both always wrote a bare `{ widthPx }` with no color, unconditionally overwriting a side that already carried a color — the border rendered black instead of the declared color, regardless of which property came first in the style string. Both now preserve the existing side's (or the generic `border` shorthand's) color when applying a width-only update, matching how `border-width` only touches the width component in real CSS.
 
 ## 1.0.1
 
