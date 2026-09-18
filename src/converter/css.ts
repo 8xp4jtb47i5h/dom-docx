@@ -62,6 +62,15 @@ export interface ParsedCss {
   borderRight?: ParsedBorder;
   borderBottom?: ParsedBorder;
   borderLeft?: ParsedBorder;
+  /**
+   * Sides with their own explicit border declaration (`border-top`,
+   * `border-top-width`, etc.) — including one that resolved to "no border"
+   * (e.g. `border-top-width: 0`). `borderTop === undefined` alone can't tell
+   * "explicitly zero" apart from "never declared", but consumers falling back
+   * to the generic `border` shorthand for an undeclared side need exactly
+   * that distinction: an explicitly zeroed side must NOT inherit `border`.
+   */
+  explicitBorderSides?: ExplicitBorderSides;
   /** CSS break-before / page-break-before → Word pageBreakBefore. */
   pageBreakBefore?: boolean;
   /** CSS break-after / page-break-after — applied to the next block sibling. */
@@ -225,10 +234,46 @@ export function parseLineHeight(
   return undefined;
 }
 
+/** Absolute CSS length units, in px at 96dpi (matches parseTableLengthToTwips's
+ * conversions in table.ts, expressed per-px instead of per-twip). */
+const LENGTH_UNITS_TO_PX: Record<string, number> = {
+  px: 1,
+  pt: 96 / 72,
+  pc: 16,
+  in: 96,
+  cm: 96 / 2.54,
+  mm: 96 / 25.4,
+};
+
+/**
+ * Parses one whitespace-delimited token of the `border`/`border-{side}`
+ * shorthand as a length in px — any of the units above, or a bare `0` (the
+ * one CSS length valid without a unit). Returns `undefined` for anything
+ * else (a style keyword, a color, or an invalid unitless non-zero number),
+ * so callers can pick the one token in the shorthand that's actually a width
+ * out of a value like `2px solid red` / `solid 2px red` / `red 2px solid`
+ * (`border`'s three components may appear in any order).
+ */
+function parseLengthTokenPx(token: string): number | undefined {
+  const match = token.match(/^(\d+(?:\.\d+)?)(px|pt|pc|mm|cm|in)?$/i);
+  if (!match) return undefined;
+  const value = parseFloat(match[1]!);
+  if (!Number.isFinite(value)) return undefined;
+  if (!match[2]) return value === 0 ? 0 : undefined;
+  return value * LENGTH_UNITS_TO_PX[match[2].toLowerCase()]!;
+}
+
 function parseBorderShorthand(value: string): ParsedBorder | undefined {
   if (/\b(?:none|hidden)\b/i.test(value)) return undefined;
-  const widthMatch = value.match(/(\d+(?:\.\d+)?)\s*px/i);
-  const widthPx = widthMatch ? parseFloat(widthMatch[1]!) : 1;
+  // Tokenizing (rather than regex-searching the whole string) means a `0`
+  // color channel inside `rgba(0,0,0,1)` can't be mistaken for the width —
+  // that token doesn't look like a bare number, so it never reaches
+  // parseLengthTokenPx at all.
+  const widthToken = value
+    .split(/\s+/)
+    .map(parseLengthTokenPx)
+    .find((px) => px !== undefined);
+  const widthPx = widthToken ?? 1;
   if (widthPx <= 0) return undefined;
   const hexMatch = value.match(/#([0-9a-f]{3,8})/i);
   const rgbMatch = value.match(/rgba?\([^)]+\)/i);
@@ -270,12 +315,13 @@ function withBorderWidth(
 }
 
 /**
- * Sides that got an explicit width declaration, tracked separately from the
+ * Sides with an explicit border declaration, tracked separately from the
  * resulting `ParsedCss` value — `0` and "never declared" both end up as
  * `undefined` there (the "0 means no border" convention), so this is the only
- * way to tell them apart afterwards (see `applyBorderStyleDefaults`).
+ * way to tell them apart afterwards (see `applyBorderStyleDefaults` and every
+ * `resolveBorderSide` call site in css.ts/table.ts).
  */
-interface ExplicitBorderWidthSides {
+export interface ExplicitBorderSides {
   top?: boolean;
   right?: boolean;
   bottom?: boolean;
@@ -285,7 +331,7 @@ interface ExplicitBorderWidthSides {
 function applyBorderWidthShorthand(
   value: string,
   result: ParsedCss,
-  explicitWidthSides: ExplicitBorderWidthSides,
+  explicitWidthSides: ExplicitBorderSides,
 ): void {
   const rawParts = value.split(/\s+/).map(parseBorderWidthPx);
   if (rawParts.some((part) => part === undefined)) return;
@@ -347,7 +393,7 @@ function parseBorderStyleShorthand(value: string): BorderStyleSides | undefined 
 function applyBorderStyleDefaults(
   sides: BorderStyleSides,
   result: ParsedCss,
-  explicitWidthSides: ExplicitBorderWidthSides,
+  explicitWidthSides: ExplicitBorderSides,
 ): void {
   const DEFAULT_MEDIUM_PX = BORDER_WIDTH_KEYWORDS_PX.medium!;
   if (sides.top && result.borderTop === undefined && result.border === undefined && !explicitWidthSides.top) {
@@ -402,7 +448,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
   const result: ParsedCss = {};
   let lineHeightRaw: string | undefined;
   let borderStyleSides: BorderStyleSides | undefined;
-  const explicitWidthSides: ExplicitBorderWidthSides = {};
+  const explicitWidthSides: ExplicitBorderSides = {};
   for (const declaration of style.split(";")) {
     const colon = declaration.indexOf(":");
     if (colon === -1) continue;
@@ -534,6 +580,10 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
         result.overflow = value.trim().toLowerCase();
         break;
       case "border":
+        // Unlike border-top/etc below, `border` is itself the fallback value
+        // consulted for sides with no declaration of their own — marking
+        // every side "explicit" here would make resolveBorderSide() refuse
+        // to use `border` as a fallback for any of them, defeating the point.
         result.border = parseBorderShorthand(value);
         break;
       case "border-width":
@@ -544,6 +594,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
         break;
       case "border-top":
         result.borderTop = parseBorderShorthand(value);
+        explicitWidthSides.top = true;
         break;
       case "border-top-width": {
         const widthPx = parseBorderWidthPx(value);
@@ -555,6 +606,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
       }
       case "border-right":
         result.borderRight = parseBorderShorthand(value);
+        explicitWidthSides.right = true;
         break;
       case "border-right-width": {
         const widthPx = parseBorderWidthPx(value);
@@ -566,6 +618,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
       }
       case "border-bottom":
         result.borderBottom = parseBorderShorthand(value);
+        explicitWidthSides.bottom = true;
         break;
       case "border-bottom-width": {
         const widthPx = parseBorderWidthPx(value);
@@ -577,6 +630,7 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
       }
       case "border-left":
         result.borderLeft = parseBorderShorthand(value);
+        explicitWidthSides.left = true;
         break;
       case "border-left-width": {
         const widthPx = parseBorderWidthPx(value);
@@ -634,6 +688,9 @@ export function parseInlineStyle(style: string | undefined): ParsedCss {
   }
   if (borderStyleSides) {
     applyBorderStyleDefaults(borderStyleSides, result, explicitWidthSides);
+  }
+  if (Object.keys(explicitWidthSides).length > 0) {
+    result.explicitBorderSides = explicitWidthSides;
   }
   return result;
 }
@@ -811,12 +868,31 @@ function borderSideToDocx(
   };
 }
 
+/**
+ * Resolves one side's border, falling back to the generic `border` shorthand
+ * only when that side has no explicit declaration of its own — an explicitly
+ * zeroed side (`border-top-width: 0`, `border-top: 0`, …) must NOT inherit
+ * `border`, even though it resolves to the same `undefined` a never-declared
+ * side would. Shared by `buildBlockBorders` here and the table border
+ * builders in table.ts, all of which had this fallback bug independently.
+ */
+export function resolveBorderSide(
+  side: ParsedBorder | undefined,
+  fallback: ParsedBorder | undefined,
+  explicitlyDeclared: boolean | undefined,
+): ParsedBorder | undefined {
+  if (side) return side;
+  if (explicitlyDeclared) return undefined;
+  return fallback;
+}
+
 function buildBlockBorders(css: ParsedCss): BlockBorders | undefined {
   const fallback = css.border;
-  const top = css.borderTop ?? fallback;
-  const right = css.borderRight ?? fallback;
-  const bottom = css.borderBottom ?? fallback;
-  const left = css.borderLeft ?? fallback;
+  const explicit = css.explicitBorderSides;
+  const top = resolveBorderSide(css.borderTop, fallback, explicit?.top);
+  const right = resolveBorderSide(css.borderRight, fallback, explicit?.right);
+  const bottom = resolveBorderSide(css.borderBottom, fallback, explicit?.bottom);
+  const left = resolveBorderSide(css.borderLeft, fallback, explicit?.left);
 
   if (!top && !right && !bottom && !left) return undefined;
 

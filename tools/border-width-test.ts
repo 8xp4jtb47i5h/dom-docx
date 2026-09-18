@@ -178,6 +178,89 @@ async function main(): Promise<void> {
     JSON.stringify(widthThenColor.borders),
   );
 
+  console.log("\nborder-width guard — explicit zero vs generic border fallback:");
+
+  // buildBlockBorders (and the table border builders) resolve a side as
+  // `css.borderX ?? css.border` — an explicitly zeroed side must not inherit
+  // the generic `border` shorthand's value just because it resolves to the
+  // same `undefined` a never-declared side would.
+  const zeroSideKeepsOthers = cssToBlockLayout(
+    parseInlineStyle("border: 2px solid #1a6fb0; border-right-width: 0;"),
+  );
+  check(
+    "border-right-width: 0 removes only the right side, others keep the generic border",
+    zeroSideKeepsOthers.borders?.top?.color === "1a6fb0" &&
+      zeroSideKeepsOthers.borders?.bottom?.color === "1a6fb0" &&
+      zeroSideKeepsOthers.borders?.left?.color === "1a6fb0" &&
+      zeroSideKeepsOthers.borders?.right === undefined,
+    JSON.stringify(zeroSideKeepsOthers.borders),
+  );
+
+  const plainFallbackStillWorks = cssToBlockLayout(parseInlineStyle("border: 2px solid #1a6fb0;"));
+  check(
+    "border alone (no per-side overrides) still falls back on all four sides",
+    [
+      plainFallbackStillWorks.borders?.top,
+      plainFallbackStillWorks.borders?.right,
+      plainFallbackStillWorks.borders?.bottom,
+      plainFallbackStillWorks.borders?.left,
+    ].every((s) => s?.color === "1a6fb0"),
+    JSON.stringify(plainFallbackStillWorks.borders),
+  );
+
+  console.log("\nborder-width guard — zero and non-px widths in the border shorthand:");
+
+  // parseBorderShorthand only recognized a width immediately followed by
+  // "px" — a bare "0" (the one CSS length valid without a unit) fell through
+  // to the "no width token" default of 1, producing a visible border from a
+  // declaration that explicitly asked for none.
+  const bareZeroBorder = parseInlineStyle("border: 0");
+  check("border: 0 (no unit) means no border", bareZeroBorder.border === undefined, JSON.stringify(bareZeroBorder));
+
+  const bareZeroSide = cssToBlockLayout(
+    parseInlineStyle("border: 2px solid #1a6fb0; border-right: 0;"),
+  );
+  check(
+    "border-right: 0 (no unit) removes only the right side",
+    bareZeroSide.borders?.top?.color === "1a6fb0" && bareZeroSide.borders?.right === undefined,
+    JSON.stringify(bareZeroSide.borders),
+  );
+
+  // Same "no width found" fallback also missed a zero in any other absolute
+  // unit (0pt, 0in, …), not just a unitless zero.
+  const nonPxZeroBorder = parseInlineStyle("border: 0pt");
+  check("border: 0pt (non-px zero) means no border", nonPxZeroBorder.border === undefined, JSON.stringify(nonPxZeroBorder));
+
+  const nonPxZeroSide = cssToBlockLayout(
+    parseInlineStyle("border: 2px solid #1a6fb0; border-right: 0in;"),
+  );
+  check(
+    "border-right: 0in (non-px zero) removes only the right side",
+    nonPxZeroSide.borders?.top?.color === "1a6fb0" && nonPxZeroSide.borders?.right === undefined,
+    JSON.stringify(nonPxZeroSide.borders),
+  );
+
+  const nonPxWidth = parseInlineStyle("border: 2pt solid #1a6fb0");
+  check(
+    "border: 2pt (non-px, non-zero) converts to px instead of defaulting to 1",
+    Math.abs((nonPxWidth.border?.widthPx ?? 0) - (2 * 96) / 72) < 0.001,
+    JSON.stringify(nonPxWidth),
+  );
+
+  const widthInMiddle = parseInlineStyle("border: solid 2px #1a6fb0");
+  check(
+    "the width token is found regardless of its position among style/color",
+    widthInMiddle.border?.widthPx === 2,
+    JSON.stringify(widthInMiddle),
+  );
+
+  const rgbaZeroDoesNotFalseTrigger = parseInlineStyle("border: solid rgba(0,0,0,1)");
+  check(
+    "a 0 color channel inside rgba() doesn't get mistaken for a bare-zero width",
+    rgbaZeroDoesNotFalseTrigger.border?.widthPx === 1,
+    JSON.stringify(rgbaZeroDoesNotFalseTrigger),
+  );
+
   await writeGuardResult({
     id: "border-width",
     label: "border-width shorthand",

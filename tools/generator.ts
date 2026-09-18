@@ -858,6 +858,112 @@ const EDGE_TEST_CASES: TestCase[] = [
       </p>
     `,
   },
+  {
+    name: "table-cell-width-vs-border-width",
+    description:
+      "A `<td>` with `border-width` but no `width` property must not have its column sized from the border value",
+    // explicitCellWidthTwips's raw-style regex fallback (used when the "width" CSS
+    // property parser didn't produce a value) isn't anchored to a property boundary,
+    // so it matches "width:" inside "border-width:" and pins the column to the
+    // border's magnitude instead of sizing from content.
+    html: `
+      <table style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="border-width: 8px; border-style: solid; border-color: #1a6fb0; padding:6px">A</td>
+          <td style="padding:6px">Cell B has enough text content to naturally take up the rest of the row width.</td>
+        </tr>
+      </table>
+    `,
+  },
+  {
+    name: "table-cell-explicit-zero-border-side",
+    description:
+      "A `<td>` with `border` on three sides and `border-right-width: 0` must not draw a right border",
+    // cellStyleBorders resolves each side as `css.borderRight ?? css.border` — an
+    // explicit zero-width side comes back `undefined` from parseInlineStyle (the
+    // "0 means no border" convention), which is indistinguishable from "not
+    // declared", so the generic `border` shorthand fallback paints the zeroed side
+    // anyway.
+    html: `
+      <table style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="border: 2px solid #1a6fb0; border-right-width: 0; padding:8px">
+            Border on top/left/bottom, none on the right.
+          </td>
+          <td style="padding:8px">Adjacent cell.</td>
+        </tr>
+      </table>
+    `,
+  },
+  {
+    name: "table-frame-explicit-zero-border-side",
+    description:
+      "A `<table>` with `border` on three sides and `border-right-width: 0` must not draw a right frame border",
+    // Same fallback pattern as table-cell-explicit-zero-border-side, but at the
+    // table-frame level: tableBorderPlan resolves each side as
+    // `css.borderRight ?? css.border`, so the zeroed right side still falls back
+    // to the table's generic `border` shorthand.
+    html: `
+      <table style="border: 24px solid #1a6fb0; border-right-width: 0; width:60%; border-collapse:collapse">
+        <tr>
+          <td style="padding:8px">Frame border on top/left/bottom, none on the right.</td>
+        </tr>
+      </table>
+    `,
+  },
+  {
+    name: "div-explicit-zero-border-side",
+    description:
+      "A `<div>` with `border` on three sides and `border-right-width: 0` must not draw a right border",
+    // Same fallback pattern again, at the block level: buildBlockBorders (css.ts)
+    // resolves each side as `css.borderRight ?? css.border`, so a zeroed side on
+    // a plain <div> is repainted by the generic `border` shorthand fallback.
+    html: `
+      <div style="border: 24px solid #1a6fb0; border-right-width: 0; padding:10px; width:60%">
+        Border on top/left/bottom, none on the right.
+      </div>
+    `,
+  },
+  {
+    name: "border-shorthand-unitless-zero",
+    description:
+      "`border: 0` / `border-right: 0` (no unit) must mean no border, not a visible 1px border",
+    // parseBorderShorthand only recognizes a width when it's immediately followed
+    // by "px" — a bare "0" (no unit at all) never matches that regex, so it falls
+    // through to the shorthand's "no px match" default of widthPx: 1, producing a
+    // visible border from a declaration that explicitly asked for none.
+    html: `
+      <div style="border: 0; padding:10px; margin-bottom:10px">border: 0 (no unit) — should have no border.</div>
+      <table style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="border: 2px solid #1a6fb0; border-right: 0; padding:8px">
+            border-right: 0 (no unit) — should have no right border.
+          </td>
+          <td style="padding:8px">Adjacent cell.</td>
+        </tr>
+      </table>
+    `,
+  },
+  {
+    name: "border-shorthand-non-px-unit-zero",
+    description:
+      "`border: 0pt` / `border-right: 0in` (zero in a non-px unit) must mean no border, not a visible 1px border",
+    // parseBorderShorthand's width detection only recognized units it converts to
+    // px (px/pt/pc/mm/cm/in) or a bare zero, and any of those resolving to 0 means
+    // no border — this covers the non-px-unit half of that (0pt/0in/etc, not just
+    // a unitless 0).
+    html: `
+      <div style="border: 0pt; padding:10px; margin-bottom:10px">border: 0pt — should have no border.</div>
+      <table style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="border: 2px solid #1a6fb0; border-right: 0in; padding:8px">
+            border-right: 0in — should have no right border.
+          </td>
+          <td style="padding:8px">Adjacent cell.</td>
+        </tr>
+      </table>
+    `,
+  },
 ];
 
 export function generateTestCases(): TestCase[] {

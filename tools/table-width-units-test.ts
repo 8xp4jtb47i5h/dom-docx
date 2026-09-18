@@ -90,6 +90,27 @@ async function main(): Promise<void> {
     `got ${cellPx.map((c) => c).join("/")}`,
   );
 
+  // The style-string width fallback (used when the "width" CSS property
+  // didn't produce one) wasn't anchored to a property boundary, so a plain
+  // regex search for "width:" matched inside "border-width:"/"min-width:" and
+  // pinned the column to that unrelated value instead of sizing from content.
+  console.log("\ncell width fallback must not match inside other *-width properties:");
+  const borderWidthOnly = await gridColWidths(
+    `<table style="width:100%;border-collapse:collapse">
+      <tr>
+        <td style="border-width: 8px; border-style: solid; padding:6px">A</td>
+        <td style="padding:6px">Cell B has enough text content to naturally take up the rest of the row width.</td>
+      </tr>
+    </table>`,
+  );
+  check(
+    "border-width (no width property) doesn't set the cell's column width",
+    // 120 twips is exactly `border-width: 8px` misread as `width: 8px`
+    // (8 * 15 twips/px) — a regex bug, not a plausible content-based size.
+    borderWidthOnly.length === 2 && borderWidthOnly[0] !== 120,
+    `got ${borderWidthOnly.map((c) => c).join("/")}`,
+  );
+
   const ok = failures === 0;
   await writeGuardResult({
     id: "table-width-units",

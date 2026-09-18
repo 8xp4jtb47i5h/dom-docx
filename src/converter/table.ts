@@ -22,6 +22,7 @@ import {
   isHiddenElement,
   mapTextAlign,
   pxToTwips,
+  resolveBorderSide,
   type ParsedBorder,
   type ParsedCss,
 } from "./css.js";
@@ -348,7 +349,7 @@ function explicitCellWidthTwips(
     return Math.round((css.widthPercent / 100) * contentWidthTwips);
   }
   const style = cell.element.attribs?.style ?? "";
-  const styleMatch = style.match(/width\s*:\s*([\d.]+\s*(?:%|px|pt|pc|mm|cm|in)?)/i);
+  const styleMatch = style.match(/(?:^|;)\s*width\s*:\s*([\d.]+\s*(?:%|px|pt|pc|mm|cm|in)?)/i);
   if (styleMatch) {
     const raw = styleMatch[1]!.trim();
     if (raw.endsWith("%")) {
@@ -518,7 +519,7 @@ function parseTableLengthToTwips(raw: string): number | undefined {
 /** One `<col>`'s width in twips: `style="width:N%|N<unit>"` or `width="N%|N<unit>"`, else undefined. */
 function colWidthTwips(col: Element, contentWidthTwips: number): number | undefined {
   const style = col.attribs?.style ?? "";
-  const styleMatch = style.match(/width\s*:\s*([\d.]+\s*(?:%|px|pt|pc|mm|cm|in)?)/i);
+  const styleMatch = style.match(/(?:^|;)\s*width\s*:\s*([\d.]+\s*(?:%|px|pt|pc|mm|cm|in)?)/i);
   if (styleMatch) {
     const raw = styleMatch[1]!.trim();
     if (raw.endsWith("%")) {
@@ -665,11 +666,12 @@ function tableBorderPlan(table: Element, styleResolver: StyleResolver): TableBor
           color: b.color ?? css.borderColor ?? "000000",
         }
       : undefined;
+  const explicit = css.explicitBorderSides;
   const frame = {
-    top: toSide(css.borderTop ?? css.border),
-    right: toSide(css.borderRight ?? css.border),
-    bottom: toSide(css.borderBottom ?? css.border),
-    left: toSide(css.borderLeft ?? css.border),
+    top: toSide(resolveBorderSide(css.borderTop, css.border, explicit?.top)),
+    right: toSide(resolveBorderSide(css.borderRight, css.border, explicit?.right)),
+    bottom: toSide(resolveBorderSide(css.borderBottom, css.border, explicit?.bottom)),
+    left: toSide(resolveBorderSide(css.borderLeft, css.border, explicit?.left)),
   };
 
   const spacingPx = separateBorderSpacingPx(table, styleResolver);
@@ -974,11 +976,12 @@ function cellStyleBorders(cell: ParsedCell, styleResolver: StyleResolver) {
           color: b.color ?? css.borderColor ?? "000000",
         }
       : undefined;
+  const explicit = css.explicitBorderSides;
   const sides = {
-    top: toSide(css.borderTop ?? css.border),
-    right: toSide(css.borderRight ?? css.border),
-    bottom: toSide(css.borderBottom ?? css.border),
-    left: toSide(css.borderLeft ?? css.border),
+    top: toSide(resolveBorderSide(css.borderTop, css.border, explicit?.top)),
+    right: toSide(resolveBorderSide(css.borderRight, css.border, explicit?.right)),
+    bottom: toSide(resolveBorderSide(css.borderBottom, css.border, explicit?.bottom)),
+    left: toSide(resolveBorderSide(css.borderLeft, css.border, explicit?.left)),
   };
   const declared = Object.fromEntries(
     Object.entries(sides).filter(([, side]) => side !== undefined),
