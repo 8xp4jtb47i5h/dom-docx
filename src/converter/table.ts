@@ -29,6 +29,7 @@ import {
 import type { StyleResolver } from "./style-resolver.js";
 import { INLINE_STYLE_RESOLVER } from "./style-resolver.js";
 import { collectInlineRunsFromNodes } from "./inline.js";
+import type { InlineFieldOptions } from "./fields.js";
 import {
   estimateTextWidthTwips,
   minContentWidthTwips,
@@ -722,12 +723,13 @@ function cellParagraph(
   cell: ParsedCell,
   styleResolver: StyleResolver,
   nodes?: AnyNode[],
+  fieldOptions?: InlineFieldOptions,
 ): Paragraph {
   const css = resolveCellCss(cell, styleResolver);
   const typography = cellTypography(cell, styleResolver);
   const content = nodes ?? cell.element.children ?? [];
   const children = content.length
-    ? collectInlineRunsFromNodes(content, typography, undefined, styleResolver)
+    ? collectInlineRunsFromNodes(content, typography, undefined, styleResolver, undefined, fieldOptions)
     : [new TextRun("")];
   const hasImage = nodesContainImage(content);
   const verticalText = Boolean(cellTextDirection(css));
@@ -757,6 +759,7 @@ function cellBlockParagraph(
   cell: ParsedCell,
   styleResolver: StyleResolver,
   element: Element,
+  fieldOptions?: InlineFieldOptions,
 ): Paragraph {
   const cellCss = resolveCellCss(cell, styleResolver);
   const blockCss = styleResolver.getCss(element);
@@ -810,6 +813,8 @@ function cellBlockParagraph(
       typography,
       undefined,
       styleResolver,
+      undefined,
+      fieldOptions,
     ),
   });
 }
@@ -891,10 +896,11 @@ function cellBlocks(
   columnWidths: number[],
   styleResolver: StyleResolver,
   cellPadding?: number,
+  fieldOptions?: InlineFieldOptions,
 ): (Paragraph | Table)[] {
   const nodes = cell.element.children ?? [];
   if (!cellHasBlockContent(nodes, styleResolver)) {
-    return [cellParagraph(cell, styleResolver)];
+    return [cellParagraph(cell, styleResolver, undefined, fieldOptions)];
   }
 
   const cellWidth = sumColumnWidths(columnWidths, columnIndex, cell.colspan);
@@ -904,7 +910,7 @@ function cellBlocks(
   let pending: AnyNode[] = [];
   const flushInline = (): void => {
     if (pending.some(nodeHasInlineContent)) {
-      blocks.push(cellParagraph(cell, styleResolver, pending));
+      blocks.push(cellParagraph(cell, styleResolver, pending, fieldOptions));
     }
     pending = [];
   };
@@ -917,12 +923,12 @@ function cellBlocks(
         const tag = el.name.toLowerCase();
         if (tag === "table") {
           flushInline();
-          blocks.push(convertTable($, el, styleResolver, contentWidth, true));
+          blocks.push(convertTable($, el, styleResolver, contentWidth, true, fieldOptions));
           continue;
         }
         if (/^(?:p|h[1-6])$/.test(tag)) {
           flushInline();
-          blocks.push(cellBlockParagraph(cell, styleResolver, el));
+          blocks.push(cellBlockParagraph(cell, styleResolver, el, fieldOptions));
           continue;
         }
         if (tag === "ul" || tag === "ol") {
@@ -955,7 +961,7 @@ function cellBlocks(
   walk(nodes);
   flushInline();
 
-  return blocks.length > 0 ? blocks : [cellParagraph(cell, styleResolver)];
+  return blocks.length > 0 ? blocks : [cellParagraph(cell, styleResolver, undefined, fieldOptions)];
 }
 
 /** Explicit style borders on the cell itself (e.g. `border-right:1px solid #e2e8f0`). */
@@ -996,6 +1002,7 @@ function buildTableCell(
   columnWidths: number[],
   styleResolver: StyleResolver,
   cellPadding?: number,
+  fieldOptions?: InlineFieldOptions,
 ): TableCell {
   const span = cell.colspan;
   const borders = cellStyleBorders(cell, styleResolver);
@@ -1033,7 +1040,7 @@ function buildTableCell(
     ...(borders ? { borders } : {}),
     ...(textDirection ? { textDirection } : {}),
     ...(verticalAlign ? { verticalAlign } : {}),
-    children: cellBlocks($, cell, columnIndex, columnWidths, styleResolver, cellPadding),
+    children: cellBlocks($, cell, columnIndex, columnWidths, styleResolver, cellPadding, fieldOptions),
   });
 }
 
@@ -1206,6 +1213,7 @@ function buildTableRows(
   cellPadding: number | undefined,
   bordered: boolean,
   gridColor: string,
+  fieldOptions?: InlineFieldOptions,
 ): TableRow[] {
   const { maxColumns, placedRows, columnWidths } = analysis;
 
@@ -1229,7 +1237,9 @@ function buildTableRows(
     while (columnIndex < maxColumns) {
       const cell = byColumn.get(columnIndex);
       if (cell) {
-        docxCells.push(buildTableCell($, cell, columnIndex, columnWidths, styleResolver, cellPadding));
+        docxCells.push(
+          buildTableCell($, cell, columnIndex, columnWidths, styleResolver, cellPadding, fieldOptions),
+        );
         columnIndex += cell.colspan;
         continue;
       }
@@ -1260,6 +1270,7 @@ export function convertTable(
   styleResolver: StyleResolver = INLINE_STYLE_RESOLVER,
   contentWidthTwips: number = CONTENT_WIDTH_TWIPS,
   fillParent = false,
+  fieldOptions?: InlineFieldOptions,
 ): Table {
   const trElements = collectRowElements($, table);
   const parsedRows = parseRows($, trElements, table, styleResolver);
@@ -1294,7 +1305,7 @@ export function convertTable(
     // `borders: undefined` means docx-library defaults (a black grid) — always
     // pass an explicit plan (grid, frame-only, or all-NONE).
     borders: plan.borders,
-    rows: buildTableRows($, analysis, styleResolver, cellPadding, plan.grid, plan.gridColor),
+    rows: buildTableRows($, analysis, styleResolver, cellPadding, plan.grid, plan.gridColor, fieldOptions),
   });
 }
 

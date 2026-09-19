@@ -128,6 +128,35 @@ async function main(): Promise<void> {
     );
   }
 
+  console.log("\nFields inside a table cell (page-number table layout in header/footer):");
+  {
+    // convertTable() never received the visitor context's fieldOptions, so any
+    // data-docx-field marker (or {page}/{pages} sugar, which rewrites to one)
+    // inside a table cell always fell back to the disabled default — silently
+    // dropping the marker instead of emitting a field or a warning, since the
+    // default fieldOptions has no onWarning wired up either.
+    const markerTableXml = await footerXml({
+      footerHtml:
+        '<table><tr><td>Page <span data-docx-field="page"></span> of <span data-docx-field="pages"></span></td></tr></table>',
+    });
+    check("data-docx-field marker inside a table cell → PAGE field", instrField(markerTableXml, "PAGE"));
+    check("data-docx-field marker inside a table cell → NUMPAGES field", instrField(markerTableXml, "NUMPAGES"));
+
+    const sugarTableXml = await footerXml({
+      footerHtml: "<table><tr><td>Page {page} of {pages}</td></tr></table>",
+    });
+    check("{page}/{pages} sugar inside a table cell → PAGE field", instrField(sugarTableXml, "PAGE"));
+    check("{page}/{pages} sugar inside a table cell → NUMPAGES field", instrField(sugarTableXml, "NUMPAGES"));
+
+    // A block element (<p>) inside the cell goes through a separate code path
+    // (cellBlockParagraph) from plain inline cell content (cellParagraph) —
+    // both need fieldOptions threaded through independently.
+    const blockInCellXml = await footerXml({
+      footerHtml: '<table><tr><td><p>Page {page} of {pages}</p></td></tr></table>',
+    });
+    check("sugar inside a <p> inside a table cell → PAGE field", instrField(blockInCellXml, "PAGE"));
+  }
+
   console.log("\npageNumber option (boolean | string):");
   {
     const boolXml = await footerXml({ pageNumber: true });

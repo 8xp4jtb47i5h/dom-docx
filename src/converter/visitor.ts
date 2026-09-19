@@ -1384,7 +1384,7 @@ export function visitElement(
           ),
         );
       }
-      tableBlocks.push(convertTable($, element, ctx.styleResolver));
+      tableBlocks.push(convertTable($, element, ctx.styleResolver, undefined, false, ctx.fieldOptions));
       const bottomSpacer = marginSpacer(tableCss.marginBottom);
       if (bottomSpacer) tableBlocks.push(bottomSpacer);
       blocks = tableBlocks;
